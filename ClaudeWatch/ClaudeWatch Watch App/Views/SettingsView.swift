@@ -1,137 +1,146 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @EnvironmentObject var settings: AppSettings
+    @EnvironmentObject private var settings: AppSettings
     @Environment(\.dismiss) private var dismiss
-    
-    @State private var showAPIKeyEditor = false
-    @State private var tempAPIKey = ""
-    @State private var showClearConfirm = false
-    
+    @State private var editingProvider: AIProvider?
+    @State private var showGatewayEditor = false
+
     var body: some View {
         NavigationStack {
             List {
-                // Model Selection
+                Section("Connection") {
+                    Picker("Mode", selection: $settings.connectionMode) {
+                        ForEach(ConnectionMode.allCases) { mode in Text(mode.title).tag(mode) }
+                    }
+                    .onChange(of: settings.connectionMode) { _, mode in
+                        if mode == .freeCloud, !settings.selectedModel.isFreeCloudModel {
+                            settings.selectedModel = AIModel.defaultFreeCloudModel
+                        }
+                    }
+
+                    if settings.connectionMode == .freeCloud {
+                        Button { showGatewayEditor = true } label: {
+                            Label(settings.gatewayURL.isEmpty ? "Add Gateway URL" : "Gateway Connected", systemImage: settings.gatewayURL.isEmpty ? "exclamationmark.triangle" : "checkmark.icloud")
+                                .foregroundStyle(settings.gatewayURL.isEmpty ? .orange : .primary)
+                        }
+                    }
+                }
+
                 Section("Model") {
-                    ForEach(ClaudeModel.allCases) { model in
-                        Button {
-                            settings.selectedModel = model
-                        } label: {
-                            HStack {
-                                Image(systemName: model.icon)
-                                    .foregroundStyle(.purple)
-                                    .frame(width: 24)
-                                
-                                VStack(alignment: .leading) {
-                                    Text(model.displayName)
-                                        .foregroundStyle(.primary)
-                                }
-                                
-                                Spacer()
-                                
-                                if model == settings.selectedModel {
-                                    Image(systemName: "checkmark")
-                                        .foregroundStyle(.purple)
+                    NavigationLink {
+                        ModelPickerView()
+                    } label: {
+                        HStack {
+                            Image(systemName: settings.selectedModel.icon).foregroundStyle(.cyan)
+                            Text(settings.selectedModel.displayName)
+                            Spacer()
+                            Text(settings.selectedModel.provider.displayName).font(.caption2).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                if settings.connectionMode == .bringYourOwnKey {
+                    Section("API Keys") {
+                        ForEach(AIProvider.allCases) { provider in
+                            Button { editingProvider = provider } label: {
+                                HStack {
+                                    Image(systemName: "key.fill").foregroundStyle(settings.hasAPIKey(for: provider) ? .green : .secondary)
+                                    Text(provider.displayName).foregroundStyle(.primary)
+                                    Spacer()
+                                    Text(settings.hasAPIKey(for: provider) ? "Added" : "Add")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
                                 }
                             }
                         }
                     }
                 }
-                
-                // API Key
-                Section("API Key") {
-                    Button {
-                        tempAPIKey = settings.apiKey
-                        showAPIKeyEditor = true
-                    } label: {
-                        HStack {
-                            Image(systemName: "key")
-                                .foregroundStyle(.purple)
-                            Text(settings.apiKey.isEmpty ? "Not Set" : "••••••••")
-                                .foregroundStyle(settings.apiKey.isEmpty ? .red : .secondary)
-                            Spacer()
-                            Image(systemName: "pencil")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-                
-                // About
+
                 Section("About") {
                     HStack {
-                        Text("Version")
+                        Text("Response limit")
                         Spacer()
-                        Text("1.0.0")
-                            .foregroundStyle(.secondary)
+                        Text("180 tokens").foregroundStyle(.secondary)
                     }
-                    
-                    Link(destination: URL(string: "https://docs.anthropic.com")!) {
-                        HStack {
-                            Image(systemName: "book")
-                                .foregroundStyle(.purple)
-                            Text("API Docs")
-                            Spacer()
-                            Image(systemName: "arrow.up.right")
-                                .foregroundStyle(.secondary)
-                        }
+                    Link(destination: URL(string: "https://github.com")!) {
+                        Label("Setup guide", systemImage: "book.closed")
                     }
                 }
             }
             .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
             }
-            .sheet(isPresented: $showAPIKeyEditor) {
-                APIKeyEditorView(apiKey: $tempAPIKey) {
-                    settings.apiKey = tempAPIKey
-                    showAPIKeyEditor = false
-                }
+            .sheet(item: $editingProvider) { provider in
+                APIKeyEditorView(provider: provider)
+            }
+            .sheet(isPresented: $showGatewayEditor) {
+                GatewayEditorView()
             }
         }
     }
 }
 
-struct APIKeyEditorView: View {
-    @Binding var apiKey: String
-    let onSave: () -> Void
+private struct APIKeyEditorView: View {
+    @EnvironmentObject private var settings: AppSettings
+    let provider: AIProvider
     @Environment(\.dismiss) private var dismiss
-    
+    @State private var apiKey = ""
+
     var body: some View {
         NavigationStack {
-            VStack(spacing: 16) {
-                Text("Enter your Anthropic API key")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                
-                TextField("sk-ant-...", text: $apiKey)
-                    .textContentType(.password)
-                
+            VStack(spacing: 12) {
+                Image(systemName: "key.fill").font(.title2).foregroundStyle(.cyan)
+                Text(provider.displayName).font(.headline)
+                SecureField(provider.apiKeyPlaceholder, text: $apiKey)
                 Button("Save") {
-                    onSave()
+                    settings.setAPIKey(apiKey.trimmingCharacters(in: .whitespacesAndNewlines), for: provider)
+                    dismiss()
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.purple)
+                .tint(.cyan)
+                Button("Remove Key", role: .destructive) {
+                    settings.setAPIKey("", for: provider)
+                    dismiss()
+                }
+                .font(.caption)
             }
             .padding()
+            .onAppear { apiKey = settings.apiKey(for: provider) }
             .navigationTitle("API Key")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+        }
+    }
+}
+
+private struct GatewayEditorView: View {
+    @EnvironmentObject private var settings: AppSettings
+    @Environment(\.dismiss) private var dismiss
+    @State private var url = ""
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 12) {
+                Image(systemName: "cloud.fill").font(.title2).foregroundStyle(.cyan)
+                Text("Free Cloud Gateway").font(.headline)
+                TextField("https://your-worker.workers.dev", text: $url)
+                    .textInputAutocapitalization(.never)
+                Button("Save") {
+                    settings.gatewayURL = url.trimmingCharacters(in: .whitespacesAndNewlines)
+                    dismiss()
                 }
+                .buttonStyle(.borderedProminent)
+                .tint(.cyan)
             }
+            .padding()
+            .onAppear { url = settings.gatewayURL }
+            .navigationTitle("Gateway")
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
         }
     }
 }
 
 #Preview {
-    SettingsView()
-        .environmentObject(AppSettings())
+    SettingsView().environmentObject(AppSettings())
 }

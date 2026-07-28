@@ -1,205 +1,201 @@
 import SwiftUI
 
 struct ChatView: View {
-    @EnvironmentObject var settings: AppSettings
-    @StateObject private var speechService = SpeechRecognitionService()
-    
+    @EnvironmentObject private var settings: AppSettings
     @State private var messages: [Message] = []
     @State private var inputText = ""
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showSettings = false
     @State private var showModelPicker = false
-    
-    private let apiService = ClaudeAPIService()
-    
+
+    private let apiService = ChatAPIService()
+
     var body: some View {
         VStack(spacing: 0) {
-            // Messages list
+            header
+
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(spacing: 8) {
-                        ForEach(messages) { message in
-                            MessageBubble(message: message)
-                                .id(message.id)
+                    LazyVStack(spacing: 9) {
+                        if messages.isEmpty {
+                            promptStarters
                         }
-                        
+                        ForEach(messages) { message in
+                            MessageBubble(message: message).id(message.id)
+                        }
                         if isLoading {
-                            HStack {
-                                ProgressView()
-                                    .tint(.purple)
-                                Text("Thinking...")
+                            HStack(spacing: 6) {
+                                ProgressView().tint(.cyan)
+                                Text("Thinking")
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
                             }
                             .padding(.vertical, 8)
                         }
                     }
-                    .padding(.horizontal, 4)
-                    .padding(.top, 8)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 8)
                 }
                 .onChange(of: messages.count) { _, _ in
-                    if let lastMessage = messages.last {
-                        withAnimation {
-                            proxy.scrollTo(lastMessage.id, anchor: .bottom)
-                        }
-                    }
+                    guard let last = messages.last else { return }
+                    withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
                 }
             }
-            
+
             Divider()
-            
-            // Input area
-            VStack(spacing: 8) {
-                // Speech-to-text display
-                if speechService.isRecording || !speechService.transcribedText.isEmpty {
-                    Text(speechService.transcribedText.isEmpty ? "Listening..." : speechService.transcribedText)
-                        .font(.caption)
-                        .foregroundStyle(speechService.isRecording ? .purple : .primary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .lineLimit(2)
-                }
-                
-                HStack(spacing: 8) {
-                    // Mic button
-                    Button {
-                        speechService.toggleRecording()
-                        if !speechService.isRecording && !speechService.transcribedText.isEmpty {
-                            inputText = speechService.transcribedText
-                        }
-                    } label: {
-                        Image(systemName: speechService.isRecording ? "mic.fill" : "mic")
-                            .font(.title3)
-                            .foregroundStyle(speechService.isRecording ? .red : .purple)
-                    }
-                    .buttonStyle(.plain)
-                    
-                    // Model indicator (tap to change)
-                    Button {
-                        showModelPicker = true
-                    } label: {
-                        Text(settings.selectedModel.shortName)
-                            .font(.caption2)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(.purple.opacity(0.2))
-                            .clipShape(Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    
-                    Spacer()
-                    
-                    // Send button
-                    Button {
-                        let textToSend = inputText.isEmpty ? speechService.transcribedText : inputText
-                        if !textToSend.isEmpty {
-                            sendMessage(textToSend)
-                        }
-                    } label: {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(.purple)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(inputText.isEmpty && speechService.transcribedText.isEmpty || isLoading)
-                    
-                    // Settings
-                    Button {
-                        showSettings = true
-                    } label: {
-                        Image(systemName: "gear")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
+            composer
         }
-        .navigationTitle("Claude")
+        .navigationTitle("Quick Chat")
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showSettings) {
-            SettingsView()
-        }
-        .sheet(isPresented: $showModelPicker) {
-            ModelPickerView(selectedModel: $settings.selectedModel)
-        }
-        .alert("Error", isPresented: .init(
-            get: { errorMessage != nil },
-            set: { if !$0 { errorMessage = nil } }
-        )) {
+        .sheet(isPresented: $showSettings) { SettingsView() }
+        .sheet(isPresented: $showModelPicker) { ModelPickerView() }
+        .alert("Couldn’t send", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("OK") { errorMessage = nil }
         } message: {
             Text(errorMessage ?? "Unknown error")
         }
     }
-    
+
+    private var header: some View {
+        HStack(spacing: 6) {
+            Button { showModelPicker = true } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: settings.selectedModel.icon)
+                    Text(settings.selectedModel.shortName)
+                        .lineLimit(1)
+                }
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.cyan)
+            }
+            .buttonStyle(.plain)
+            Spacer()
+            Image(systemName: settings.connectionMode.icon)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Button { showSettings = true } label: {
+                Image(systemName: "gearshape.fill").font(.caption)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 5)
+    }
+
+    private var promptStarters: some View {
+        VStack(spacing: 7) {
+            Image(systemName: "waveform")
+                .font(.title2)
+                .foregroundStyle(.cyan)
+            Text("Ask anything")
+                .font(.caption.weight(.semibold))
+            HStack(spacing: 5) {
+                starter("Summarize")
+                starter("Ideas")
+            }
+        }
+        .foregroundStyle(.secondary)
+        .padding(.top, 18)
+    }
+
+    private func starter(_ text: String) -> some View {
+        Button(text) { inputText = text + ": " }
+            .buttonStyle(.bordered)
+            .tint(.cyan)
+            .font(.caption2)
+    }
+
+    private var composer: some View {
+        VStack(spacing: 5) {
+            HStack(spacing: 10) {
+                TextField("Message", text: $inputText)
+                    .font(.caption)
+
+                Button {
+                    if !inputText.isEmpty { sendMessage(inputText) }
+                } label: {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(.cyan)
+                }
+                .buttonStyle(.plain)
+                .disabled(inputText.isEmpty || isLoading)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+    }
+
     private func sendMessage(_ text: String) {
-        let userMessage = Message(role: .user, content: text)
-        messages.append(userMessage)
-        
-        // Clear inputs
+        messages.append(Message(role: .user, content: text))
         inputText = ""
-        speechService.transcribedText = ""
-        
         isLoading = true
-        
+        let model = settings.selectedModel
+        let mode = settings.connectionMode
+        let key = settings.apiKey(for: model.provider)
+        let gatewayURL = settings.gatewayURL
+
         Task {
             do {
-                let response = try await apiService.sendMessage(
-                    messages: messages,
-                    model: settings.selectedModel,
-                    apiKey: settings.apiKey
-                )
-                
-                let assistantMessage = Message(
-                    role: .assistant,
-                    content: response,
-                    model: settings.selectedModel.displayName
-                )
-                messages.append(assistantMessage)
-                
+                let response = try await apiService.sendMessage(messages: messages, model: model, connectionMode: mode, apiKey: key, gatewayURL: gatewayURL)
+                messages.append(Message(role: .assistant, content: response, model: model.displayName))
             } catch {
                 errorMessage = error.localizedDescription
             }
-            
             isLoading = false
         }
     }
 }
 
 struct ModelPickerView: View {
-    @Binding var selectedModel: ClaudeModel
+    @EnvironmentObject private var settings: AppSettings
     @Environment(\.dismiss) private var dismiss
-    
+
+    private var models: [AIModel] {
+        settings.connectionMode == .freeCloud ? AIModel.allCases.filter(\.isFreeCloudModel) : AIModel.allCases
+    }
+
     var body: some View {
-        List {
-            ForEach(ClaudeModel.allCases) { model in
-                Button {
-                    selectedModel = model
-                    dismiss()
-                } label: {
-                    HStack {
-                        Image(systemName: model.icon)
-                            .foregroundStyle(.purple)
-                        Text(model.displayName)
-                        Spacer()
-                        if model == selectedModel {
-                            Image(systemName: "checkmark")
-                                .foregroundStyle(.purple)
+        NavigationStack {
+            List {
+                Section {
+                    Picker("Connection", selection: $settings.connectionMode) {
+                        ForEach(ConnectionMode.allCases) { mode in Text(mode.title).tag(mode) }
+                    }
+                    .onChange(of: settings.connectionMode) { _, mode in
+                        if mode == .freeCloud, !settings.selectedModel.isFreeCloudModel {
+                            settings.selectedModel = AIModel.defaultFreeCloudModel
+                        }
+                    }
+                }
+                ForEach(groupedModels, id: \.0) { family, choices in
+                    Section(family) {
+                        ForEach(choices) { model in
+                            Button {
+                                settings.selectedModel = model
+                                dismiss()
+                            } label: {
+                                HStack {
+                                    Image(systemName: model.icon).foregroundStyle(.cyan).frame(width: 20)
+                                    Text(model.displayName).foregroundStyle(.primary)
+                                    Spacer()
+                                    if model == settings.selectedModel { Image(systemName: "checkmark").foregroundStyle(.cyan) }
+                                }
+                            }
                         }
                     }
                 }
             }
+            .navigationTitle("Models")
         }
-        .navigationTitle("Model")
+    }
+
+    private var groupedModels: [(String, [AIModel])] {
+        Dictionary(grouping: models, by: \.family).keys.sorted().map { ($0, Dictionary(grouping: models, by: \.family)[$0] ?? []) }
     }
 }
 
 #Preview {
-    NavigationStack {
-        ChatView()
-            .environmentObject(AppSettings())
-    }
+    NavigationStack { ChatView() }.environmentObject(AppSettings())
 }

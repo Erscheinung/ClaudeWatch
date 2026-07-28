@@ -1,204 +1,94 @@
-# Claude Watch ⌚
+# ClaudeWatch
 
-A standalone watchOS app for interacting with Claude AI directly from your Apple Watch Ultra 3. Use voice-to-text to speak your questions and get concise AI responses on your wrist.
+A standalone, voice-first watchOS chat client for fast AI answers. ClaudeWatch is built around small or low-latency models and keeps responses brief enough for the wrist.
 
-## Features
+## Access Modes
 
-- **Voice Input**: Tap the microphone and speak naturally - your voice is transcribed in real-time
-- **Model Selection**: Switch between Opus 4.5, Sonnet 4.5, and Haiku 4.5
-- **Native watchOS UI**: Designed specifically for the Apple Watch form factor
-- **Standalone Operation**: Works independently - no iPhone app required (just needs network connectivity)
-- **Concise Responses**: System prompt optimized for brief, watch-friendly responses
+### Free Cloud
 
-## Screenshots
+Free Cloud is ready on first launch. It uses Pollinations' anonymous legacy OpenAI-compatible endpoint, `https://text.pollinations.ai/openai`, with the verified `openai` route (currently backed by GPT-OSS 20B). No API key is sent by the Watch.
 
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Claude Watch  │    │  What's the     │    │  ⚙️ Settings    │
-│                 │    │  weather like?  │    │                 │
-│  🎤 Sonnet ➤   │    │                 │    │  Model: Sonnet  │
-│                 │    │  It's currently │    │  API Key: ••••  │
-│                 │    │  cloudy and 65° │    │                 │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-    Home Screen           Chat View            Settings
-```
+This is a convenience route, not a production SLA. Its model, rate limits, and availability are controlled by the upstream provider and can change without notice.
+
+Qwen3 4B, Kimi K2, and Gemma 3 4B remain available through a personal OpenRouter key. They can move back into Free Cloud when a controlled gateway with those routes is deployed.
+
+### Bring Your Own Key
+
+Developers can select a model and add an API key for its provider directly on the Watch. Keys are stored in the Watch Keychain, and requests go directly to the provider over HTTPS.
+
+| Provider | Fast models included |
+| --- | --- |
+| Groq | Llama 3.1 8B Instant, GPT-OSS 20B |
+| Anthropic | Claude Haiku |
+| OpenAI | GPT-4.1 Nano, GPT-4o mini |
+| Google AI | Gemini 2.5 Flash-Lite |
+| Perplexity | Sonar |
+| OpenRouter | Curated free models when a personal OpenRouter key is used |
 
 ## Requirements
 
-- Xcode 15.0+
-- watchOS 10.0+
-- Apple Watch Series 6+ or Ultra (for speech recognition)
-- Anthropic API key
+- Xcode 15+
+- watchOS 10+
+- An Apple Watch with network access
+- A provider API key for Bring Your Own Key mode
 
-## Project Structure
-
-```
-ClaudeWatch/
-├── ClaudeWatch.xcodeproj/
-├── ClaudeWatch Watch App/
-│   ├── ClaudeWatchApp.swift         # App entry point
-│   ├── ContentView.swift            # Main navigation
-│   ├── Views/
-│   │   ├── ChatView.swift           # Main chat interface
-│   │   ├── SettingsView.swift       # Configuration
-│   │   └── MessageBubble.swift      # Message UI component
-│   ├── Models/
-│   │   ├── ClaudeModel.swift        # Model definitions
-│   │   └── Message.swift            # Message & API types
-│   ├── Services/
-│   │   ├── ClaudeAPIService.swift   # Anthropic API client
-│   │   └── SpeechRecognitionService.swift  # Voice input
-│   ├── Assets.xcassets/
-│   └── Info.plist
-└── README.md
-```
-
-## Setup & Deployment
-
-### 1. Clone and Open Project
+## Run the Watch App
 
 ```bash
-# Clone the repo (if from GitHub)
-git clone https://github.com/YOUR_USERNAME/ClaudeWatch.git
 cd ClaudeWatch
-
-# Open in Xcode
 open ClaudeWatch.xcodeproj
 ```
 
-### 2. Configure Signing
+In Xcode, select the **ClaudeWatch Watch App** target, choose a signing team, give the bundle identifier a unique value, select a Watch simulator or paired watch, and run with `Cmd + R`.
 
-1. Open the project in Xcode
-2. Select the **ClaudeWatch Watch App** target
-3. Go to **Signing & Capabilities**
-4. Select your **Team** (Personal Team or Developer account)
-5. Update the **Bundle Identifier** to something unique:
-   ```
-   com.yourname.ClaudeWatch.watchkitapp
-   ```
+Tap the message field and use the Watch keyboard or system Dictation. A physical watch provides the most reliable voice-entry experience.
 
-### 3. Add Required Capabilities
+## Optional Free Cloud Proxy
 
-The app needs these capabilities (should be auto-configured via Info.plist):
-- **Speech Recognition** - for voice input
-- **Microphone** - for audio capture
-
-If you encounter permission issues, verify the Info.plist contains:
-```xml
-<key>NSMicrophoneUsageDescription</key>
-<string>Claude Watch needs microphone access...</string>
-<key>NSSpeechRecognitionUsageDescription</key>
-<string>Claude Watch uses speech recognition...</string>
-```
-
-### 4. Build and Deploy
-
-**To Simulator:**
-1. Select a Watch simulator (e.g., "Apple Watch Ultra 2")
-2. Press `Cmd + R` to build and run
-3. Note: Speech recognition may have limited functionality in simulator
-
-**To Physical Watch:**
-1. Connect your iPhone to your Mac
-2. Ensure your Apple Watch is paired and unlocked
-3. Select your watch from the device dropdown in Xcode
-4. Press `Cmd + R` to build and install
-5. Trust the developer certificate on your watch if prompted:
-   - Settings → General → VPN & Device Management
-
-### 5. Configure API Key
-
-On first launch:
-1. Open Claude Watch on your watch
-2. Enter your Anthropic API key when prompted
-3. The key is stored locally on your watch
-
-Get your API key at: https://console.anthropic.com/
-
-## Usage
-
-1. **Open the app** on your Apple Watch
-2. **Tap the microphone** button and speak your question
-3. **Tap send** (or wait for auto-detection) to submit
-4. **View the response** - scrollable if needed
-5. **Tap the model badge** to switch between Opus/Sonnet/Haiku
-
-### Tips for Best Results
-
-- Speak clearly and at a normal pace
-- Keep questions concise for the watch format
-- Use Haiku for fastest responses, Opus for complex questions
-- The app works best on WiFi or when your watch has cellular
-
-## Customization
-
-### Modify System Prompt
-
-Edit `ClaudeAPIService.swift` to change Claude's behavior:
-
-```swift
-system: "You are Claude, responding on an Apple Watch. Keep responses brief..."
-```
-
-### Adjust Response Length
-
-Change `max_tokens` in `ClaudeAPIService.swift`:
-
-```swift
-max_tokens: 512  // Increase for longer responses
-```
-
-### Add Custom Models
-
-Edit `ClaudeModel.swift` to add new model options.
-
-## Troubleshooting
-
-### "Speech recognition not authorized"
-- Go to Watch Settings → Privacy & Security → Speech Recognition
-- Enable for Claude Watch
-
-### "Network error"
-- Ensure your watch has internet connectivity
-- Check that your API key is valid
-- Verify the Anthropic API is accessible
-
-### App doesn't appear on watch
-- Ensure your watch is paired and synced
-- Try restarting both iPhone and Watch
-- Reinstall via Xcode
-
-## Security Notes
-
-- API key is stored in UserDefaults (suitable for personal use)
-- For production deployment, consider using Keychain storage
-- Messages are sent directly to Anthropic's API over HTTPS
-
-## Future Improvements
-
-- [ ] Conversation history persistence
-- [ ] Haptic feedback on response
-- [ ] Complications for quick access
-- [ ] Keychain storage for API key
-- [ ] WatchConnectivity for iPhone companion app
-
-## License
-
-MIT License - Feel free to modify and use as you wish.
-
-## Pushing to GitHub
+The included Worker is optional. It forwards only the verified anonymous route and applies a basic rate limit if you want an endpoint you control.
 
 ```bash
-# Initialize git and push to your private repo
-cd ClaudeWatch
-git init
-git add .
-git commit -m "Initial commit: Claude Watch app"
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/ClaudeWatch.git
-git push -u origin main
+cd ../cloudflare-worker
+npm install
+npx wrangler login
+npm run deploy
 ```
 
----
+Copy the resulting Worker base URL, for example `https://claudewatch-free-cloud.example.workers.dev`, then open **Settings > Free Cloud Gateway** in the Watch app and paste it. The app appends `/v1/chat/completions` itself. Leave the built-in Pollinations URL unchanged to use the default route.
 
-Built with ❤️ for the Apple Watch Ultra 3
+Before making the worker public, configure Cloudflare WAF/rate-limit rules or replace its best-effort in-memory limiter with a Durable Object.
+
+## Bring Your Own Key
+
+1. In the app, open **Settings** and set **Mode** to **Your Key**.
+2. Choose a model under **Model**.
+3. Add the corresponding provider key under **API Keys**.
+4. Return to chat and speak or type a question.
+
+The app caps outputs at 180 tokens and supplies a concise watch-specific system prompt. Change `systemPrompt` or the `max_tokens` values in `ClaudeAPIService.swift` for a different response style.
+
+## Project Layout
+
+```text
+ClaudeWatch/
+├── ClaudeWatch.xcodeproj/
+├── ClaudeWatch Watch App/
+│   ├── Models/                 # Provider-neutral model catalog and messages
+│   ├── Services/               # Speech recognition and multi-provider client
+│   └── Views/                  # Watch chat, model picker, and settings
+└── README.md
+cloudflare-worker/
+├── src/index.ts                # Free-cloud model allowlist and proxy
+└── wrangler.toml
+```
+
+## Security
+
+- Provider keys are stored in the Watch Keychain, not `UserDefaults`.
+- Bring Your Own Key requests are sent directly to the provider selected by the user.
+- Do not put shared provider keys in source code, `Info.plist`, or the Watch app.
+- The Free Cloud route has a hard allowlist and output cap. Its availability is upstream-controlled; production deployments should use an operator-controlled gateway and edge rate limiting.
+
+## Model Maintenance
+
+Provider model identifiers and free routes change. Update `AIModel.allCases` in `ClaudeModel.swift`, verify the endpoint with a real request, and update `FREE_MODELS` in `cloudflare-worker/src/index.ts` together when rotating the free-cloud offering.

@@ -1,54 +1,61 @@
 import SwiftUI
 
 struct ContentView: View {
-    @EnvironmentObject var settings: AppSettings
-    
+    @EnvironmentObject private var settings: AppSettings
+
     var body: some View {
         NavigationStack {
-            if settings.apiKey.isEmpty {
-                SetupView()
-            } else {
+            if settings.isReady {
                 ChatView()
+            } else {
+                WelcomeView()
             }
         }
     }
 }
 
-struct SetupView: View {
-    @EnvironmentObject var settings: AppSettings
-    @State private var tempAPIKey: String = ""
-    
+private struct WelcomeView: View {
+    @EnvironmentObject private var settings: AppSettings
+    @State private var showSettings = false
+
     var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 40))
-                    .foregroundStyle(.purple)
-                
-                Text("Claude Watch")
+            VStack(spacing: 12) {
+                Image(systemName: "bolt.chat.fill")
+                    .font(.system(size: 38))
+                    .foregroundStyle(.cyan)
+
+                Text("Quick Chat")
                     .font(.headline)
-                
-                Text("Enter your Anthropic API key to get started")
-                    .font(.caption)
+
+                Picker("Connection", selection: $settings.connectionMode) {
+                    ForEach(ConnectionMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+
+                Text(settings.connectionMode == .freeCloud ? "Choose a gateway to use the free model pool." : "Choose a model, then add that provider's key.")
+                    .font(.caption2)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-                
-                TextField("API Key", text: $tempAPIKey)
-                    .textContentType(.password)
-                
-                Button("Save") {
-                    settings.apiKey = tempAPIKey
+
+                Button {
+                    showSettings = true
+                } label: {
+                    Label(settings.connectionMode == .freeCloud ? "Gateway Setup" : "Add API Key", systemImage: "slider.horizontal.3")
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.purple)
-                .disabled(tempAPIKey.isEmpty)
+                .tint(.cyan)
             }
-            .padding()
+            .padding(.horizontal, 10)
+        }
+        .navigationTitle("Quick Chat")
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
         }
     }
 }
 
 #Preview {
-    ContentView()
-        .environmentObject(AppSettings())
+    ContentView().environmentObject(AppSettings())
 }

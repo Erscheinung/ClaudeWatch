@@ -1,0 +1,7 @@
+name = "claudewatch-free-cloud"
+main = "src/index.ts"
+compatibility_date = "2026-07-28"
+
+[vars]
+REQUESTS_PER_MINUTE = "20"
+# Set ALLOWED_ORIGIN for browser clients. Native watchOS clients do not send an Origin header.

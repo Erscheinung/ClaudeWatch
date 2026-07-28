@@ -7,16 +7,16 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		AAA00001 /* ClaudeWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00001; };
-		AAA00002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00002; };
-		AAA00003 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00003; };
-		AAA00004 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00004; };
-		AAA00005 /* MessageBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00005; };
-		AAA00006 /* ClaudeModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00006; };
-		AAA00007 /* Message.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00007; };
-		AAA00008 /* ClaudeAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00008; };
-		AAA00009 /* SpeechRecognitionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00009; };
-		AAA00010 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AAB00010; };
+		AAA00001 /* ClaudeWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00001 /* ClaudeWatchApp.swift */; };
+		AAA00002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00002 /* ContentView.swift */; };
+		AAA00003 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00003 /* ChatView.swift */; };
+		AAA00004 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00004 /* SettingsView.swift */; };
+		AAA00005 /* MessageBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00005 /* MessageBubble.swift */; };
+		AAA00006 /* ClaudeModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00006 /* ClaudeModel.swift */; };
+		AAA00007 /* Message.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00007 /* Message.swift */; };
+		AAA00008 /* ClaudeAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00008 /* ClaudeAPIService.swift */; };
+		AAA00009 /* SpeechRecognitionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00009 /* SpeechRecognitionService.swift */; };
+		AAA00010 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AAB00010 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -108,7 +108,7 @@
 /* Begin PBXNativeTarget section */
 		AAF00001 /* ClaudeWatch Watch App */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = AAG00003;
+			buildConfigurationList = AAG00003 /* Build configuration list for PBXNativeTarget "ClaudeWatch Watch App" */;
 			buildPhases = (
 				AAD00002 /* Sources */,
 				AAD00001 /* Frameworks */,
@@ -120,7 +120,7 @@
 			);
 			name = "ClaudeWatch Watch App";
 			productName = "ClaudeWatch Watch App";
-			productReference = AAC00001;
+			productReference = AAC00001 /* ClaudeWatch Watch App.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -138,7 +138,7 @@
 					};
 				};
 			};
-			buildConfigurationList = AAG00001;
+			buildConfigurationList = AAG00001 /* Build configuration list for PBXProject "ClaudeWatch" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -308,28 +308,31 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = T5BW64AW3P;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "ClaudeWatch Watch App/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Claude Watch";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Claude Watch needs microphone access to transcribe your voice messages.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Claude Watch uses speech recognition to convert your voice to text for sending messages to Claude.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "";
-				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
+				INFOPLIST_KEY_WKWatchOnly = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.yourname.ClaudeWatch.watchkitapp";
+				PRODUCT_BUNDLE_IDENTIFIER = com.Erscheinung.ClaudeWatch.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 4;
-				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+				WATCHOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_WATCHOS_DEPLOYMENT_TARGET)";
 			};
 			name = Debug;
 		};
@@ -338,28 +341,31 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = T5BW64AW3P;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "ClaudeWatch Watch App/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Claude Watch";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Claude Watch needs microphone access to transcribe your voice messages.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Claude Watch uses speech recognition to convert your voice to text for sending messages to Claude.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "";
-				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
+				INFOPLIST_KEY_WKWatchOnly = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.yourname.ClaudeWatch.watchkitapp";
+				PRODUCT_BUNDLE_IDENTIFIER = com.Erscheinung.ClaudeWatch.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 4;
-				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+				WATCHOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_WATCHOS_DEPLOYMENT_TARGET)";
 			};
 			name = Release;
 		};
