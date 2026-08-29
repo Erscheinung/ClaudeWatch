@@ -51,7 +51,7 @@ struct ChatView: View {
         .alert("Couldn’t send", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("OK") { errorMessage = nil }
         } message: { Text(errorMessage ?? "Unknown error") }
-        .onChange(of: recorder.errorMessage) { _, message in
+        .onChange(of: recorder.errorMessage) { message in
             if let message { errorMessage = message }
         }
         .onDisappear { requestTask?.cancel() }

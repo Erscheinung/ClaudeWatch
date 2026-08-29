@@ -29,7 +29,6 @@ struct ClaudeWatchComplicationView: View {
                 Label("Ask mAI", systemImage: "mic.fill")
             case .accessoryCorner:
                 Image(systemName: "mic.fill")
-                    .widgetLabel("Ask mAI")
             default:
                 Image(systemName: "mic.fill")
                     .font(.title3.weight(.bold))
