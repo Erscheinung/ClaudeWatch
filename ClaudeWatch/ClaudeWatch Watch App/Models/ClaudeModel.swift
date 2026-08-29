@@ -1,5 +1,18 @@
 import Foundation
 
+enum VoiceInputMode: String, CaseIterable, Identifiable {
+    case text
+    case audio
+
+    var id: String { rawValue }
+    var title: String { self == .text ? "Text" : "Audio" }
+    var detail: String {
+        self == .text
+            ? "Apple Dictation converts speech first; only text is sent to the AI."
+            : "The recording is sent directly to Gemini for understanding."
+    }
+}
+
 enum ConnectionMode: String, CaseIterable, Identifiable {
     case freeCloud
     case bringYourOwnKey
@@ -8,8 +21,8 @@ enum ConnectionMode: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .freeCloud: return "Free Cloud"
-        case .bringYourOwnKey: return "Your Key"
+        case .freeCloud: return "Fallback"
+        case .bringYourOwnKey: return "Gemini & keys"
         }
     }
 
@@ -93,13 +106,18 @@ struct AIModel: RawRepresentable, Identifiable, Hashable {
     static let haiku = AIModel(rawValue: "claude-haiku-4-5-20251001", provider: .anthropic, displayName: "Claude Haiku", family: "Anthropic", icon: "sparkles", isFreeCloudModel: false)
     static let gptNano = AIModel(rawValue: "gpt-4.1-nano", provider: .openAI, displayName: "GPT-4.1 Nano", family: "OpenAI", icon: "bolt.fill", isFreeCloudModel: false)
     static let gptMini = AIModel(rawValue: "gpt-4o-mini", provider: .openAI, displayName: "GPT-4o mini", family: "OpenAI", icon: "bolt.fill", isFreeCloudModel: false)
-    static let geminiFlashLite = AIModel(rawValue: "gemini-2.5-flash-lite", provider: .google, displayName: "Gemini Flash-Lite", family: "Google AI", icon: "flashlight.on.fill", isFreeCloudModel: false)
+    static let geminiFlashLite = AIModel(rawValue: "gemini-3.5-flash-lite", provider: .google, displayName: "Gemini 3.5 Flash-Lite", family: "Google AI", icon: "sparkles", isFreeCloudModel: false)
     static let sonar = AIModel(rawValue: "sonar", provider: .perplexity, displayName: "Perplexity Sonar", family: "Perplexity", icon: "globe", isFreeCloudModel: false)
 
     static let allCases: [AIModel] = [
         pollinationsFast, qwenFree, kimiFree, gemmaFree, groqLlama, groqGPTOSS,
-        haiku, gptNano, gptMini, geminiFlashLite, sonar
+        geminiFlashLite, haiku, gptNano, gptMini, sonar
     ]
 
     static let defaultFreeCloudModel = pollinationsFast
+
+    static func preferredModel(for provider: AIProvider) -> AIModel? {
+        if provider == .google { return geminiFlashLite }
+        return allCases.first { $0.provider == provider && !$0.isFreeCloudModel }
+    }
 }

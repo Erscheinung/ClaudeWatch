@@ -28,7 +28,8 @@ actor ChatAPIService {
         model: AIModel,
         connectionMode: ConnectionMode,
         apiKey: String,
-        gatewayURL: String
+        gatewayURL: String,
+        allowFallback: Bool = false
     ) async throws -> String {
         if connectionMode == .freeCloud {
             guard model.isFreeCloudModel else {
@@ -50,7 +51,17 @@ actor ChatAPIService {
         case .anthropic:
             return try await sendAnthropic(messages: messages, model: model.rawValue, apiKey: apiKey)
         case .google:
-            return try await sendGemini(messages: messages, model: model.rawValue, apiKey: apiKey)
+            do {
+                return try await sendGemini(messages: messages, model: model.rawValue, apiKey: apiKey)
+            } catch {
+                guard allowFallback else { throw error }
+                return try await sendOpenAICompatible(
+                    endpoint: gatewayEndpoint(from: gatewayURL),
+                    model: AIModel.pollinationsFast.rawValue,
+                    apiKey: nil,
+                    messages: messages
+                )
+            }
         case .openRouter:
             return try await sendOpenAICompatible(endpoint: URL(string: "https://openrouter.ai/api/v1/chat/completions")!, model: model.rawValue, apiKey: apiKey, messages: messages)
         case .groq:
@@ -62,6 +73,61 @@ actor ChatAPIService {
         case .pollinations:
             return try await sendOpenAICompatible(endpoint: URL(string: "https://gen.pollinations.ai/v1/chat/completions")!, model: model.rawValue, apiKey: apiKey, messages: messages)
         }
+    }
+
+    func sendAudioMessage(audioData: Data, model: AIModel, apiKey: String) async throws -> String {
+        guard model.provider == .google else {
+            throw APIError.configuration("Voice queries require Gemini.")
+        }
+        guard !apiKey.isEmpty else {
+            throw APIError.configuration("Add a Google AI API key in Settings.")
+        }
+        guard let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model.rawValue):generateContent") else {
+            throw APIError.invalidURL
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 45
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
+        request.httpBody = try JSONEncoder().encode(GeminiRequest(
+            systemInstruction: .init(role: "system", parts: [.init(text: systemPrompt)]),
+            contents: [.init(role: "user", parts: [.init(audioData: audioData, mimeType: "audio/wav")])],
+            generationConfig: .init(maxOutputTokens: 180)
+        ))
+        let data = try await perform(request)
+        let response = try JSONDecoder().decode(GeminiResponse.self, from: data)
+        let text = response.candidates?.first?.content.parts.compactMap(\.text).joined() ?? ""
+        guard !text.isEmpty else { throw APIError.decodingError }
+        return text
+    }
+
+    func transcribeAudio(audioData: Data, model: AIModel, apiKey: String) async throws -> String {
+        guard model.provider == .google else {
+            throw APIError.configuration("Background transcription requires a Gemini model.")
+        }
+        guard !apiKey.isEmpty else {
+            throw APIError.configuration("Add a Google AI API key in Settings.")
+        }
+        guard let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model.rawValue):generateContent") else {
+            throw APIError.invalidURL
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 30
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
+        request.httpBody = try JSONEncoder().encode(GeminiRequest(
+            systemInstruction: .init(role: "system", parts: [.init(text: "Transcribe the user's speech exactly. Return only the transcript, without a label or answer.")]),
+            contents: [.init(role: "user", parts: [.init(audioData: audioData, mimeType: "audio/wav")])],
+            generationConfig: .init(maxOutputTokens: 160)
+        ))
+        let data = try await perform(request)
+        let response = try JSONDecoder().decode(GeminiResponse.self, from: data)
+        let text = response.candidates?.first?.content.parts.compactMap(\.text).joined()
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !text.isEmpty else { throw APIError.decodingError }
+        return text
     }
 
     private func gatewayEndpoint(from value: String) throws -> URL {
@@ -120,18 +186,18 @@ actor ChatAPIService {
     }
 
     private func sendGemini(messages: [Message], model: String, apiKey: String) async throws -> String {
-        guard let encodedKey = apiKey.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent?key=\(encodedKey)") else {
+        guard let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent") else {
             throw APIError.invalidURL
         }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.timeoutInterval = 35
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
         request.httpBody = try JSONEncoder().encode(GeminiRequest(
             systemInstruction: .init(role: "system", parts: [.init(text: systemPrompt)]),
             contents: messages.map { .init(role: $0.role == .assistant ? "model" : "user", parts: [.init(text: $0.content)]) },
-            generationConfig: .init(maxOutputTokens: 180, temperature: 0.4)
+            generationConfig: .init(maxOutputTokens: 180)
         ))
         let data = try await perform(request)
         let response = try JSONDecoder().decode(GeminiResponse.self, from: data)
@@ -190,9 +256,23 @@ private struct AnthropicResponse: Codable {
 }
 
 private struct GeminiRequest: Codable {
-    struct Part: Codable { let text: String }
+    struct Part: Codable {
+        struct InlineData: Codable { let mimeType: String; let data: String }
+        let text: String?
+        let inlineData: InlineData?
+
+        init(text: String) {
+            self.text = text
+            inlineData = nil
+        }
+
+        init(audioData: Data, mimeType: String) {
+            text = nil
+            inlineData = .init(mimeType: mimeType, data: audioData.base64EncodedString())
+        }
+    }
     struct Content: Codable { let role: String?; let parts: [Part] }
-    struct GenerationConfig: Codable { let maxOutputTokens: Int; let temperature: Double }
+    struct GenerationConfig: Codable { let maxOutputTokens: Int }
     let systemInstruction: Content
     let contents: [Content]
     let generationConfig: GenerationConfig

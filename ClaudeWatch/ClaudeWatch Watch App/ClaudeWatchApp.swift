@@ -25,23 +25,31 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(gatewayURL, forKey: Keys.gatewayURL) }
     }
     @Published private(set) var credentialRevision = 0
+    @Published var fallbackEnabled: Bool {
+        didSet { UserDefaults.standard.set(fallbackEnabled, forKey: Keys.fallbackEnabled) }
+    }
+    @Published var voiceInputMode: VoiceInputMode {
+        didSet { UserDefaults.standard.set(voiceInputMode.rawValue, forKey: Keys.voiceInputMode) }
+    }
 
     private enum Keys {
         static let selectedModel = "selectedModel"
         static let connectionMode = "connectionMode"
         static let gatewayURL = "freeCloudGatewayURL"
+        static let fallbackEnabled = "fallbackEnabled"
+        static let voiceInputMode = "voiceInputMode"
     }
 
     init() {
         let modelKey = UserDefaults.standard.string(forKey: Keys.selectedModel)
-        selectedModel = modelKey.flatMap(AIModel.init(rawValue:)) ?? AIModel.defaultFreeCloudModel
+        selectedModel = modelKey.flatMap(AIModel.init(rawValue:)) ?? AIModel.geminiFlashLite
         let mode = UserDefaults.standard.string(forKey: Keys.connectionMode)
-        connectionMode = ConnectionMode(rawValue: mode ?? "") ?? .freeCloud
+        connectionMode = ConnectionMode(rawValue: mode ?? "") ?? .bringYourOwnKey
+        fallbackEnabled = UserDefaults.standard.object(forKey: Keys.fallbackEnabled) as? Bool ?? false
+        voiceInputMode = VoiceInputMode(rawValue: UserDefaults.standard.string(forKey: Keys.voiceInputMode) ?? "") ?? .audio
         let savedGateway = UserDefaults.standard.string(forKey: Keys.gatewayURL)?.trimmingCharacters(in: .whitespacesAndNewlines)
         gatewayURL = savedGateway?.isEmpty == false ? savedGateway! : Self.defaultFreeCloudEndpoint
-        if connectionMode == .freeCloud, !selectedModel.isFreeCloudModel {
-            selectedModel = AIModel.defaultFreeCloudModel
-        }
+        normalizePreferredModel()
     }
 
     func apiKey(for provider: AIProvider) -> String {
@@ -55,6 +63,12 @@ final class AppSettings: ObservableObject {
             KeychainStore.save(value, account: provider.rawValue)
         }
         credentialRevision += 1
+        if !value.isEmpty, let preferred = AIModel.preferredModel(for: provider) {
+            selectedModel = preferred
+            connectionMode = .bringYourOwnKey
+        } else {
+            normalizePreferredModel()
+        }
     }
 
     func hasAPIKey(for provider: AIProvider) -> Bool {
@@ -62,13 +76,38 @@ final class AppSettings: ObservableObject {
     }
 
     var isReady: Bool {
-        switch connectionMode {
-        case .freeCloud:
-            return !gatewayURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        case .bringYourOwnKey:
-            return hasAPIKey(for: selectedModel.provider)
+        preferredModel != nil
+    }
+
+    /// The app only sends through a model whose provider has a key on this watch.
+    /// Gemini wins when restoring older installs that still point at a free/Qwen model.
+    var preferredModel: AIModel? {
+        if hasAPIKey(for: selectedModel.provider), !selectedModel.isFreeCloudModel {
+            return selectedModel
+        }
+        if hasAPIKey(for: .google) { return .geminiFlashLite }
+        return AIProvider.allCases
+            .first(where: hasAPIKey(for:))
+            .flatMap(AIModel.preferredModel(for:))
+    }
+
+    func selectPreferredModel(_ model: AIModel) {
+        guard hasAPIKey(for: model.provider), !model.isFreeCloudModel else { return }
+        selectedModel = model
+        connectionMode = .bringYourOwnKey
+    }
+
+    private func normalizePreferredModel() {
+        if hasAPIKey(for: .google),
+           connectionMode == .freeCloud || !hasAPIKey(for: selectedModel.provider) || selectedModel.isFreeCloudModel {
+            selectedModel = .geminiFlashLite
+            connectionMode = .bringYourOwnKey
+        } else if let model = preferredModel {
+            selectedModel = model
+            connectionMode = .bringYourOwnKey
         }
     }
+
 }
 
 private enum KeychainStore {

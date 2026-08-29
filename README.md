@@ -41,7 +41,14 @@ open ClaudeWatch.xcodeproj
 
 In Xcode, select the **ClaudeWatch Watch App** target, choose a signing team, give the bundle identifier a unique value, select a Watch simulator or paired watch, and run with `Cmd + R`.
 
-Tap the message field and use the Watch keyboard or system Dictation. A physical watch provides the most reliable voice-entry experience.
+### Watch controls
+
+- Tap the centre sphere once to start recording, then tap it again to send.
+- Swipe right from the left edge of the chat screen to open **Settings**.
+- The default **Audio** voice mode sends one recording directly to Gemini, avoiding a separate transcription request. Use **Text** mode only when you need to send voice queries to a non-Gemini model.
+- Add the **Claude Watch** complication from the Watch face editor. Its microphone glyph opens the app directly to the voice interface.
+
+The app icon provides dedicated Watch launcher and App Store slots, and the complication uses a system microphone glyph rather than relying on the app icon. The chat sphere is intentionally static between state changes to keep the Watch interface responsive. A physical watch provides the most reliable voice-entry experience.
 
 ## Optional Free Cloud Proxy
 

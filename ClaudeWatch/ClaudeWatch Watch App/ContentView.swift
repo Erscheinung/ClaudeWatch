@@ -4,12 +4,10 @@ struct ContentView: View {
     @EnvironmentObject private var settings: AppSettings
 
     var body: some View {
-        NavigationStack {
-            if settings.isReady {
-                ChatView()
-            } else {
-                WelcomeView()
-            }
+        if settings.isReady {
+            ChatView()
+        } else {
+            WelcomeView()
         }
     }
 }
@@ -19,37 +17,22 @@ private struct WelcomeView: View {
     @State private var showSettings = false
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 12) {
-                Image(systemName: "bolt.chat.fill")
-                    .font(.system(size: 38))
-                    .foregroundStyle(.cyan)
-
-                Text("Quick Chat")
-                    .font(.headline)
-
-                Picker("Connection", selection: $settings.connectionMode) {
-                    ForEach(ConnectionMode.allCases) { mode in
-                        Text(mode.title).tag(mode)
-                    }
-                }
-
-                Text(settings.connectionMode == .freeCloud ? "Choose a gateway to use the free model pool." : "Choose a model, then add that provider's key.")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-
-                Button {
-                    showSettings = true
-                } label: {
-                    Label(settings.connectionMode == .freeCloud ? "Gateway Setup" : "Add API Key", systemImage: "slider.horizontal.3")
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.cyan)
+        VStack(spacing: 10) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 30, weight: .semibold))
+                .foregroundStyle(Color.cyan)
+            Text("Set up Gemini").font(.headline)
+            Text("Add your Gemini API key once, then start chatting and dictating.")
+                .font(.caption2)
+                .foregroundStyle(Color.secondary)
+                .multilineTextAlignment(.center)
+            Button { showSettings = true } label: {
+                Label("Add Gemini Key", systemImage: "key.fill")
             }
-            .padding(.horizontal, 10)
+            .buttonStyle(.borderedProminent)
+            .tint(Color.cyan)
         }
-        .navigationTitle("Quick Chat")
+        .padding(.horizontal, 12)
         .sheet(isPresented: $showSettings) {
             SettingsView()
         }
