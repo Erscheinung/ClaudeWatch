@@ -1,6 +1,6 @@
 # ClaudeWatch
 
-A standalone, voice-first watchOS chat client for fast AI answers. ClaudeWatch is built around small or low-latency models and keeps responses brief enough for the wrist.
+A standalone, voice-first watchOS chat client for fast AI answers. ClaudeWatch (originally built for Claude API but I use it with Gemini 3.5 flash lite now since it's cheap and reliable) is built around small or low-latency models and keeps responses brief enough for the wrist.
 
 ## Access Modes
 
@@ -21,7 +21,7 @@ Developers can select a model and add an API key for its provider directly on th
 | Groq | Llama 3.1 8B Instant, GPT-OSS 20B |
 | Anthropic | Claude Haiku |
 | OpenAI | GPT-4.1 Nano, GPT-4o mini |
-| Google AI | Gemini 2.5 Flash-Lite |
+| Google AI | Gemini 3.5 Flash-Lite |
 | Perplexity | Sonar |
 | OpenRouter | Curated free models when a personal OpenRouter key is used |
 
