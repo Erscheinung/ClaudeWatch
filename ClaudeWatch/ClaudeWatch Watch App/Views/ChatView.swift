@@ -163,7 +163,7 @@ struct ChatView: View {
                     .accessibilityHint("Starts recording immediately")
                 }
                 .padding(.horizontal, 12)
-                .padding(.vertical, 5)
+                .padding(.vertical, 2)
                 .background(.ultraThinMaterial)
             }
         }
