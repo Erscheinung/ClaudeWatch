@@ -32,15 +32,21 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(voiceInputMode.rawValue, forKey: Keys.voiceInputMode) }
     }
 
+    @Published var readAloud: Bool {
+        didSet { UserDefaults.standard.set(readAloud, forKey: Keys.readAloud) }
+    }
+
     private enum Keys {
         static let selectedModel = "selectedModel"
         static let connectionMode = "connectionMode"
         static let gatewayURL = "freeCloudGatewayURL"
         static let fallbackEnabled = "fallbackEnabled"
         static let voiceInputMode = "voiceInputMode"
+        static let readAloud = "readAloud"
     }
 
     init() {
+        readAloud = UserDefaults.standard.object(forKey: Keys.readAloud) as? Bool ?? true
         let modelKey = UserDefaults.standard.string(forKey: Keys.selectedModel)
         selectedModel = modelKey.flatMap(AIModel.init(rawValue:)) ?? AIModel.geminiFlashLite
         let mode = UserDefaults.standard.string(forKey: Keys.connectionMode)

@@ -1,101 +1,60 @@
 # ClaudeWatch
 
-A standalone, voice-first watchOS chat client for fast AI answers. ClaudeWatch (originally built for Claude API but I use it with Gemini 3.5 flash lite now since it's cheap and reliable) is built around small or low-latency models and keeps responses brief enough for the wrist.
+A standalone, voice-first watchOS assistant. Originally built for Claude, the app now defaults to Gemini Flash-Lite and also supports other providers with your own keys.
 
-## Access Modes
+## Watch experience
 
-### Free Cloud
+- **Tap to speak.** The home screen shows a microphone and a short instruction. Opening the microphone has its own state; “Listening” appears once recording begins.
+- **Tap the arrow to send.** While listening, light trails orbit the sphere, a timer shows recording duration, and a haptic confirms recording started. Questions send automatically at 60 seconds. Cancel discards the recording.
+- **See progress.** A rotating violet ring and “Thinking…” identify the request in progress. Cancel stops waiting; failed requests offer Retry question without recording again.
+- **Read comfortably.** Answers use Dynamic Type, regular body text, inline Markdown emphasis and links, spaced paragraphs, headings, and lists. Code is shown in monospace; pipe tables are simplified into rows. New answers open at their beginning.
+- **Ask again.** A persistent bottom Ask button starts a new recording immediately. The controls sit below the answer; no long press or hidden microphone overlay is needed.
+- **Choose whether to listen.** Settings → Replies → Read aloud is on by default and persists across launches. Switch it off for text-only replies. The speaker button reads the latest answer on demand, and changes to Stop during playback. Speech uses the formatted answer’s plain text.
+- **Find settings.** Swipe right, or tap the faint handle and chevron on the left edge. The home screen also includes a quiet swipe hint. Opening Settings cancels active recording or requests and stops speech.
 
-Free Cloud is ready on first launch. It uses Pollinations' anonymous legacy OpenAI-compatible endpoint, `https://text.pollinations.ai/openai`, with the verified `openai` route (currently backed by GPT-OSS 20B). No API key is sent by the Watch.
+Animations run only during active voice states and respect Reduce Motion and reduced luminance. Buttons have VoiceOver labels. Leaving the app for the background cancels microphone activity and pending requests. Conversation history stays in memory for the current session; each question is sent independently.
 
-This is a convenience route, not a production SLA. Its model, rate limits, and availability are controlled by the upstream provider and can change without notice.
+## Setup
 
-Qwen3 4B, Kimi K2, and Gemma 3 4B remain available through a personal OpenRouter key. They can move back into Free Cloud when a controlled gateway with those routes is deployed.
+1. Open Settings from the welcome screen and add your Gemini API key. Keys are stored in the Watch Keychain.
+2. Choose a model under **Model**. Only providers with saved keys appear.
+3. Leave **Voice → Send as → Audio** selected for Gemini: a recording goes directly to the model.
+4. For another provider, select **Text**. Gemini first transcribes the recording, then the selected provider receives the transcript. This mode also requires a Gemini key; it does not use Apple Dictation.
+5. Configure **Read aloud**, return to chat, and tap the mic.
 
-### Bring Your Own Key
+The catalog includes Gemini, Claude, OpenAI, Groq, Perplexity, and OpenRouter models. Provider availability and billing depend on your account. Usage information in the app is informational, not a live balance.
 
-Developers can select a model and add an API key for its provider directly on the Watch. Keys are stored in the Watch Keychain, and requests go directly to the provider over HTTPS.
+## Run the Watch app
 
-| Provider | Fast models included |
-| --- | --- |
-| Groq | Llama 3.1 8B Instant, GPT-OSS 20B |
-| Anthropic | Claude Haiku |
-| OpenAI | GPT-4.1 Nano, GPT-4o mini |
-| Google AI | Gemini 3.5 Flash-Lite |
-| Perplexity | Sonar |
-| OpenRouter | Curated free models when a personal OpenRouter key is used |
-
-## Requirements
-
-- Xcode 15+
-- watchOS 10+
-- An Apple Watch with network access
-- A provider API key for Bring Your Own Key mode
-
-## Run the Watch App
+Requirements: a compatible Xcode installation, an Apple Watch with network access, and a provider API key. The current Watch app target is configured for watchOS 27.0; the project and complication retain 10.0 settings. Choose a compatible device/SDK or deliberately align deployment targets before running.
 
 ```bash
 cd ClaudeWatch
 open ClaudeWatch.xcodeproj
 ```
 
-In Xcode, select the **ClaudeWatch Watch App** target, choose a signing team, give the bundle identifier a unique value, select a Watch simulator or paired watch, and run with `Cmd + R`.
+Select **ClaudeWatch Watch App**, choose your signing team and bundle identifier, then run on your watch. Add the **Claude Watch** microphone complication from the watch face editor to launch the app quickly.
 
-### Watch controls
+The UX overhaul was implemented without builds, tests, simulator runs, or device testing at the user's request. Device validation is still pending, including small displays, accessibility sizes, audio interruptions, and the animated recording flow.
 
-- Tap the centre sphere once to start recording, then tap it again to send.
-- Swipe right from the left edge of the chat screen to open **Settings**.
-- The default **Audio** voice mode sends one recording directly to Gemini, avoiding a separate transcription request. Use **Text** mode only when you need to send voice queries to a non-Gemini model.
-- Add the **Claude Watch** complication from the Watch face editor. Its microphone glyph opens the app directly to the voice interface.
-
-The app icon provides dedicated Watch launcher and App Store slots, and the complication uses a system microphone glyph rather than relying on the app icon. The chat sphere is intentionally static between state changes to keep the Watch interface responsive. A physical watch provides the most reliable voice-entry experience.
-
-## Optional Free Cloud Proxy
-
-The included Worker is optional. It forwards only the verified anonymous route and applies a basic rate limit if you want an endpoint you control.
-
-```bash
-cd ../cloudflare-worker
-npm install
-npx wrangler login
-npm run deploy
-```
-
-Copy the resulting Worker base URL, for example `https://claudewatch-free-cloud.example.workers.dev`, then open **Settings > Free Cloud Gateway** in the Watch app and paste it. The app appends `/v1/chat/completions` itself. Leave the built-in Pollinations URL unchanged to use the default route.
-
-Before making the worker public, configure Cloudflare WAF/rate-limit rules or replace its best-effort in-memory limiter with a Durable Object.
-
-## Bring Your Own Key
-
-1. In the app, open **Settings** and set **Mode** to **Your Key**.
-2. Choose a model under **Model**.
-3. Add the corresponding provider key under **API Keys**.
-4. Return to chat and speak or type a question.
-
-The app caps outputs at 180 tokens and supplies a concise watch-specific system prompt. Change `systemPrompt` or the `max_tokens` values in `ClaudeAPIService.swift` for a different response style.
-
-## Project Layout
+## Project layout
 
 ```text
 ClaudeWatch/
 ├── ClaudeWatch.xcodeproj/
 ├── ClaudeWatch Watch App/
-│   ├── Models/                 # Provider-neutral model catalog and messages
-│   ├── Services/               # Speech recognition and multi-provider client
-│   └── Views/                  # Watch chat, model picker, and settings
-└── README.md
-cloudflare-worker/
-├── src/index.ts                # Free-cloud model allowlist and proxy
-└── wrangler.toml
+│   ├── ClaudeWatchApp.swift    # Persisted settings and Keychain access
+│   ├── Models/                # Provider catalog and messages
+│   ├── Services/              # Multi-provider API client
+│   └── Views/                 # Voice flow, answer formatting, settings
+└── ClaudeWatchComplication/
+cloudflare-worker/             # Optional legacy free-cloud proxy
 ```
 
-## Security
+The API client caps output at 180 tokens and asks for short, watch-friendly responses. Voice recordings use temporary files removed after sending or cancellation. Failed-request audio is retained only in memory for retry and replaced when a new question starts.
 
-- Provider keys are stored in the Watch Keychain, not `UserDefaults`.
-- Bring Your Own Key requests are sent directly to the provider selected by the user.
-- Do not put shared provider keys in source code, `Info.plist`, or the Watch app.
-- The Free Cloud route has a hard allowlist and output cap. Its availability is upstream-controlled; production deployments should use an operator-controlled gateway and edge rate limiting.
+## Development and security
 
-## Model Maintenance
+See [AGENTS.md](AGENTS.md) for interaction and implementation guidance. Keep credentials in Keychain; never commit provider keys or bake shared keys into the app. Model IDs live in `Models/ClaudeModel.swift` and should be checked with the provider before changing them.
 
-Provider model identifiers and free routes change. Update `AIModel.allCases` in `ClaudeModel.swift`, verify the endpoint with a real request, and update `FREE_MODELS` in `cloudflare-worker/src/index.ts` together when rotating the free-cloud offering.
+The optional [Cloudflare Worker](cloudflare-worker/README.md) and legacy free-cloud client code remain in the repository. The current Watch settings use provider keys and do not expose a free-cloud or fallback endpoint editor. Deploying the Worker is separate from the Watch UX.

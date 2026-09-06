@@ -8,7 +8,7 @@ enum VoiceInputMode: String, CaseIterable, Identifiable {
     var title: String { self == .text ? "Text" : "Audio" }
     var detail: String {
         self == .text
-            ? "Apple Dictation converts speech first; only text is sent to the AI."
+            ? "Gemini transcribes your recording, then sends the text to your selected model. Requires a Gemini key."
             : "The recording is sent directly to Gemini for understanding."
     }
 }

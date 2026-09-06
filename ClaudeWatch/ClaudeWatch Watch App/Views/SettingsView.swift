@@ -9,6 +9,11 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
+                Section("Replies") {
+                    Toggle("Read aloud", isOn: $settings.readAloud)
+                    Text(settings.readAloud ? "Answers appear as text and are read aloud." : "Answers appear as text only. Tap the speaker on an answer to listen.")
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
                 Section("Voice") {
                     Picker("Send as", selection: $settings.voiceInputMode) {
                         ForEach(VoiceInputMode.allCases) { mode in
@@ -66,9 +71,6 @@ private struct UsageView: View {
                 Text("Voice input cost").font(.headline)
                 Text("Gemini 3.5 Flash-Lite input is currently $0.30 per million tokens. A 10-second recording is about 320 audio tokens (~$0.000096); a 25-token transcript is about $0.0000075. Output pricing is the same in either mode.").font(.caption)
                 Text("Current mode: \(settings.voiceInputMode.title)").font(.caption.bold()).foregroundStyle(Color.cyan)
-                Divider()
-                Text("Fallback").font(.headline)
-                Text("If Gemini returns a quota or network error, turn on a fallback endpoint in Settings. The endpoint is independent of Gemini billing.").font(.caption)
             }.padding()
         }.navigationTitle("Usage")
     }
@@ -81,8 +83,8 @@ private struct SetupHelpView: View {
                 Text("Quick setup").font(.headline)
                 help("1", "Choose Gemini Flash-Lite", "It is the fast default for short voice replies.")
                 help("2", "Add your Gemini API key", "Settings → Gemini → Add Gemini key. The key is saved only in Keychain.")
-                help("3", "Talk", "Keep holding the yellow bar while you speak, then release to send.")
-                help("4", "Listen", "The answer appears on screen and is spoken using an installed Apple voice.")
+                help("3", "Talk", "Tap the mic once, speak, then tap the arrow to send. Cancel discards the recording. Questions send automatically at 60 seconds.")
+                help("4", "Listen", "Read the answer and tap Ask for another question. Turn off Read aloud for text-only replies. Swipe right or tap the faint left-edge cue for Settings.")
             }.padding()
         }.navigationTitle("Setup")
     }

@@ -21,7 +21,7 @@ actor ChatAPIService {
         }
     }
 
-    private let systemPrompt = "You are a fast, helpful assistant on Apple Watch. Answer directly in 1-4 short sentences. Use concise lists only when they improve clarity."
+    private let systemPrompt = "You are a fast, helpful assistant on Apple Watch. Answer directly in 1-4 short sentences. Use short paragraphs or concise lists when helpful. Avoid tables and headings on this small screen. Use Markdown only for simple emphasis and lists."
 
     func sendMessage(
         messages: [Message],
