@@ -432,7 +432,23 @@ private final class VoiceRecorder: NSObject, ObservableObject, AVAudioRecorderDe
         do {
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(.playAndRecord, mode: .spokenAudio)
-            try session.setActive(true)
+            AudioSessionController.activate { [weak self] activated in
+                guard let self, self.preparationID == id else {
+                    if activated { AudioSessionController.deactivate() }
+                    return
+                }
+                guard activated else {
+                    self.fail("Couldn’t start the microphone. Please try again.")
+                    return
+                }
+                self.createRecorder(id: id)
+            }
+        } catch { fail("Couldn’t start the microphone: \(error.localizedDescription)") }
+    }
+
+    private func createRecorder(id: UUID) {
+        guard preparationID == id else { return }
+        do {
             let url = FileManager.default.temporaryDirectory.appendingPathComponent("voice-\(UUID().uuidString).wav")
             recordingURL = url
             let recorder = try AVAudioRecorder(url: url, settings: [
@@ -478,8 +494,14 @@ private final class VoiceRecorder: NSObject, ObservableObject, AVAudioRecorderDe
 
 @MainActor
 private enum AudioSessionController {
+    static func activate(completion: @escaping (Bool) -> Void) {
+        AVAudioSession.sharedInstance().activate(options: []) { activated, _ in
+            Task { @MainActor in completion(activated) }
+        }
+    }
+
     static func deactivate() {
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        AVAudioSession.sharedInstance().deactivate(options: .notifyOthersOnDeactivation) { _, _ in }
     }
 }
 
@@ -488,6 +510,7 @@ private final class SpeechOutput: NSObject, ObservableObject, AVSpeechSynthesize
     @Published private(set) var isSpeaking = false
     private let synthesizer = AVSpeechSynthesizer()
     private var currentUtterance: AVSpeechUtterance?
+    private var activationID: UUID?
 
     override init() {
         super.init()
@@ -496,11 +519,30 @@ private final class SpeechOutput: NSObject, ObservableObject, AVSpeechSynthesize
     func speak(_ text: String) {
         stop()
         guard !text.isEmpty else { return }
+        let activationID = UUID()
+        self.activationID = activationID
         do {
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(.playback, mode: .spokenAudio)
-            try session.setActive(true)
-        } catch { return }
+        } catch {
+            self.activationID = nil
+            return
+        }
+        AudioSessionController.activate { [weak self] activated in
+            guard let self, self.activationID == activationID else {
+                if activated { AudioSessionController.deactivate() }
+                return
+            }
+            guard activated else {
+                self.activationID = nil
+                return
+            }
+            self.startSpeaking(text)
+        }
+    }
+
+    private func startSpeaking(_ text: String) {
+        guard activationID != nil else { return }
         let utterance = AVSpeechUtterance(string: text)
         utterance.voice = AVSpeechSynthesisVoice(language: Locale.current.identifier)
         utterance.rate = 0.48
@@ -509,6 +551,7 @@ private final class SpeechOutput: NSObject, ObservableObject, AVSpeechSynthesize
         synthesizer.speak(utterance)
     }
     func stop() {
+        activationID = nil
         currentUtterance = nil
         if synthesizer.isSpeaking { synthesizer.stopSpeaking(at: .immediate) }
         if isSpeaking { AudioSessionController.deactivate() }
