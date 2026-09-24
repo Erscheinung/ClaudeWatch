@@ -21,7 +21,9 @@ actor ChatAPIService {
         }
     }
 
-    private let systemPrompt = "You are a fast, helpful assistant on Apple Watch. Answer directly in 1-4 short sentences. Use short paragraphs or concise lists when helpful. Avoid tables and headings on this small screen. Use Markdown only for simple emphasis and lists."
+    private func systemPrompt(for length: ReplyLength) -> String {
+        "You are a helpful assistant on Apple Watch. Prioritize accuracy and answering the user's actual question. If speech or intent is unclear, ask a brief clarification instead of guessing. State uncertainty rather than inventing facts, and do not claim live information or verification you do not have. Use short paragraphs or concise lists. Avoid tables and large headings. Use Markdown only for simple emphasis and lists. " + length.instruction
+    }
 
     func sendMessage(
         messages: [Message],
@@ -29,6 +31,7 @@ actor ChatAPIService {
         connectionMode: ConnectionMode,
         apiKey: String,
         gatewayURL: String,
+        replyLength: ReplyLength = .balanced,
         allowFallback: Bool = false
     ) async throws -> String {
         if connectionMode == .freeCloud {
@@ -39,7 +42,8 @@ actor ChatAPIService {
                 endpoint: gatewayEndpoint(from: gatewayURL),
                 model: model.rawValue,
                 apiKey: nil,
-                messages: messages
+                messages: messages,
+                replyLength: replyLength
             )
         }
 
@@ -49,33 +53,34 @@ actor ChatAPIService {
 
         switch model.provider {
         case .anthropic:
-            return try await sendAnthropic(messages: messages, model: model.rawValue, apiKey: apiKey)
+            return try await sendAnthropic(messages: messages, model: model.rawValue, apiKey: apiKey, replyLength: replyLength)
         case .google:
             do {
-                return try await sendGemini(messages: messages, model: model.rawValue, apiKey: apiKey)
+                return try await sendGemini(messages: messages, model: model.rawValue, apiKey: apiKey, replyLength: replyLength)
             } catch {
                 guard allowFallback else { throw error }
                 return try await sendOpenAICompatible(
                     endpoint: gatewayEndpoint(from: gatewayURL),
                     model: AIModel.pollinationsFast.rawValue,
                     apiKey: nil,
-                    messages: messages
+                    messages: messages,
+                    replyLength: replyLength
                 )
             }
         case .openRouter:
-            return try await sendOpenAICompatible(endpoint: URL(string: "https://openrouter.ai/api/v1/chat/completions")!, model: model.rawValue, apiKey: apiKey, messages: messages)
+            return try await sendOpenAICompatible(endpoint: URL(string: "https://openrouter.ai/api/v1/chat/completions")!, model: model.rawValue, apiKey: apiKey, messages: messages, replyLength: replyLength)
         case .groq:
-            return try await sendOpenAICompatible(endpoint: URL(string: "https://api.groq.com/openai/v1/chat/completions")!, model: model.rawValue, apiKey: apiKey, messages: messages)
+            return try await sendOpenAICompatible(endpoint: URL(string: "https://api.groq.com/openai/v1/chat/completions")!, model: model.rawValue, apiKey: apiKey, messages: messages, replyLength: replyLength)
         case .openAI:
-            return try await sendOpenAICompatible(endpoint: URL(string: "https://api.openai.com/v1/chat/completions")!, model: model.rawValue, apiKey: apiKey, messages: messages)
+            return try await sendOpenAICompatible(endpoint: URL(string: "https://api.openai.com/v1/chat/completions")!, model: model.rawValue, apiKey: apiKey, messages: messages, replyLength: replyLength)
         case .perplexity:
-            return try await sendOpenAICompatible(endpoint: URL(string: "https://api.perplexity.ai/chat/completions")!, model: model.rawValue, apiKey: apiKey, messages: messages)
+            return try await sendOpenAICompatible(endpoint: URL(string: "https://api.perplexity.ai/chat/completions")!, model: model.rawValue, apiKey: apiKey, messages: messages, replyLength: replyLength)
         case .pollinations:
-            return try await sendOpenAICompatible(endpoint: URL(string: "https://gen.pollinations.ai/v1/chat/completions")!, model: model.rawValue, apiKey: apiKey, messages: messages)
+            return try await sendOpenAICompatible(endpoint: URL(string: "https://gen.pollinations.ai/v1/chat/completions")!, model: model.rawValue, apiKey: apiKey, messages: messages, replyLength: replyLength)
         }
     }
 
-    func sendAudioMessage(audioData: Data, model: AIModel, apiKey: String) async throws -> String {
+    func sendAudioMessage(audioData: Data, model: AIModel, apiKey: String, replyLength: ReplyLength = .balanced) async throws -> String {
         guard model.provider == .google else {
             throw APIError.configuration("Voice queries require Gemini.")
         }
@@ -87,17 +92,17 @@ actor ChatAPIService {
         }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.timeoutInterval = 45
+        request.timeoutInterval = 60
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
         request.httpBody = try JSONEncoder().encode(GeminiRequest(
-            systemInstruction: .init(role: "system", parts: [.init(text: systemPrompt)]),
+            systemInstruction: .init(role: "system", parts: [.init(text: systemPrompt(for: replyLength))]),
             contents: [.init(role: "user", parts: [.init(audioData: audioData, mimeType: "audio/wav")])],
-            generationConfig: .init(maxOutputTokens: 180)
+            generationConfig: .init(maxOutputTokens: replyLength.maxOutputTokens)
         ))
         let data = try await perform(request)
         let response = try JSONDecoder().decode(GeminiResponse.self, from: data)
-        let text = response.candidates?.first?.content.parts.compactMap(\.text).joined() ?? ""
+        let text = response.candidates?.first?.content?.parts?.compactMap(\.text).joined() ?? ""
         guard !text.isEmpty else { throw APIError.decodingError }
         return text
     }
@@ -120,11 +125,14 @@ actor ChatAPIService {
         request.httpBody = try JSONEncoder().encode(GeminiRequest(
             systemInstruction: .init(role: "system", parts: [.init(text: "Transcribe the user's speech exactly. Return only the transcript, without a label or answer.")]),
             contents: [.init(role: "user", parts: [.init(audioData: audioData, mimeType: "audio/wav")])],
-            generationConfig: .init(maxOutputTokens: 160)
+            generationConfig: .init(maxOutputTokens: 2048)
         ))
         let data = try await perform(request)
         let response = try JSONDecoder().decode(GeminiResponse.self, from: data)
-        let text = response.candidates?.first?.content.parts.compactMap(\.text).joined()
+        guard response.candidates?.first?.finishReason != "MAX_TOKENS" else {
+            throw APIError.configuration("Your question was too long to transcribe completely. Please try a shorter recording.")
+        }
+        let text = response.candidates?.first?.content?.parts?.compactMap(\.text).joined()
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard !text.isEmpty else { throw APIError.decodingError }
         return text
@@ -146,16 +154,16 @@ actor ChatAPIService {
         return url
     }
 
-    private func sendOpenAICompatible(endpoint: URL, model: String, apiKey: String?, messages: [Message]) async throws -> String {
+    private func sendOpenAICompatible(endpoint: URL, model: String, apiKey: String?, messages: [Message], replyLength: ReplyLength) async throws -> String {
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
-        request.timeoutInterval = 35
+        request.timeoutInterval = 60
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if let apiKey { request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization") }
         let body = OpenAIChatRequest(
             model: model,
-            messages: [OpenAIChatRequest.APIMessage(role: "system", content: systemPrompt)] + messages.map { .init(role: $0.role.rawValue, content: $0.content) },
-            max_tokens: 180,
+            messages: [OpenAIChatRequest.APIMessage(role: "system", content: systemPrompt(for: replyLength))] + messages.map { .init(role: $0.role.rawValue, content: $0.content) },
+            max_tokens: replyLength.maxOutputTokens,
             temperature: 0.4
         )
         request.httpBody = try JSONEncoder().encode(body)
@@ -165,18 +173,18 @@ actor ChatAPIService {
         return text
     }
 
-    private func sendAnthropic(messages: [Message], model: String, apiKey: String) async throws -> String {
+    private func sendAnthropic(messages: [Message], model: String, apiKey: String, replyLength: ReplyLength) async throws -> String {
         var request = URLRequest(url: URL(string: "https://api.anthropic.com/v1/messages")!)
         request.httpMethod = "POST"
-        request.timeoutInterval = 35
+        request.timeoutInterval = 60
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
         request.httpBody = try JSONEncoder().encode(AnthropicRequest(
             model: model,
-            max_tokens: 180,
+            max_tokens: replyLength.maxOutputTokens,
             messages: messages.map { .init(role: $0.role.rawValue, content: $0.content) },
-            system: systemPrompt
+            system: systemPrompt(for: replyLength)
         ))
         let data = try await perform(request)
         let response = try JSONDecoder().decode(AnthropicResponse.self, from: data)
@@ -185,23 +193,23 @@ actor ChatAPIService {
         return text
     }
 
-    private func sendGemini(messages: [Message], model: String, apiKey: String) async throws -> String {
+    private func sendGemini(messages: [Message], model: String, apiKey: String, replyLength: ReplyLength) async throws -> String {
         guard let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent") else {
             throw APIError.invalidURL
         }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.timeoutInterval = 35
+        request.timeoutInterval = 60
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
         request.httpBody = try JSONEncoder().encode(GeminiRequest(
-            systemInstruction: .init(role: "system", parts: [.init(text: systemPrompt)]),
+            systemInstruction: .init(role: "system", parts: [.init(text: systemPrompt(for: replyLength))]),
             contents: messages.map { .init(role: $0.role == .assistant ? "model" : "user", parts: [.init(text: $0.content)]) },
-            generationConfig: .init(maxOutputTokens: 180)
+            generationConfig: .init(maxOutputTokens: replyLength.maxOutputTokens)
         ))
         let data = try await perform(request)
         let response = try JSONDecoder().decode(GeminiResponse.self, from: data)
-        let text = response.candidates?.first?.content.parts.compactMap(\.text).joined() ?? ""
+        let text = response.candidates?.first?.content?.parts?.compactMap(\.text).joined() ?? ""
         guard !text.isEmpty else { throw APIError.decodingError }
         return text
     }
@@ -279,7 +287,7 @@ private struct GeminiRequest: Codable {
 }
 
 private struct GeminiResponse: Codable {
-    struct Candidate: Codable { struct Content: Codable { let parts: [Part] }; struct Part: Codable { let text: String? }; let content: Content }
+    struct Candidate: Codable { struct Content: Codable { let parts: [Part]? }; struct Part: Codable { let text: String? }; let content: Content?; let finishReason: String? }
     let candidates: [Candidate]?
 }
 

@@ -10,6 +10,15 @@ struct SettingsView: View {
         NavigationStack {
             List {
                 Section("Replies") {
+                    Picker("Output length", selection: $settings.replyLength) {
+                        ForEach(ReplyLength.allCases) { length in
+                            Text(length.title).tag(length)
+                        }
+                    }
+                    Text(settings.replyLength.detail)
+                        .font(.caption2).foregroundStyle(.secondary)
+                    Text("Controls reply length, not the model. Longer replies do not guarantee accuracy.")
+                        .font(.caption2).foregroundStyle(.secondary)
                     Toggle("Read aloud", isOn: $settings.readAloud)
                     Text(settings.readAloud ? "Answers appear as text and are read aloud." : "Answers appear as text only. Tap the speaker on an answer to listen.")
                         .font(.caption2).foregroundStyle(.secondary)
@@ -84,7 +93,8 @@ private struct SetupHelpView: View {
                 help("1", "Choose Gemini Flash-Lite", "It is the fast default for short voice replies.")
                 help("2", "Add your Gemini API key", "Settings → Gemini → Add Gemini key. The key is saved only in Keychain.")
                 help("3", "Talk", "Tap the mic once, speak, then tap the arrow to send. Cancel discards the recording. Questions send automatically at 60 seconds.")
-                help("4", "Listen", "Read the answer and tap Ask for another question. Turn off Read aloud for text-only replies. Swipe right or tap the faint left-edge cue for Settings.")
+                help("4", "Reply length", "Settings → Replies → Output length offers Light, Balanced, and Heavy. Balanced is the default; the model stays the same.")
+                help("5", "Listen", "Read the answer and tap Ask for another independent question. Tap the new-chat icon or swipe left to clear answers and return to the mic. Turn off Read aloud for text-only replies. Swipe right or tap the faint left-edge cue for Settings.")
             }.padding()
         }.navigationTitle("Setup")
     }

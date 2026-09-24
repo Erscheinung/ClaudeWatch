@@ -30,7 +30,9 @@ struct ChatView: View {
             LinearGradient(colors: [Color(red: 0.035, green: 0.055, blue: 0.15), .black], startPoint: .top, endPoint: .bottom)
                 .ignoresSafeArea()
             VStack(spacing: 0) {
-                if showsVoiceStage { voiceStage } else { conversation }
+                if showsVoiceStage { voiceStage } else {
+                    conversation.ignoresSafeArea(.container, edges: .bottom)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             Button(action: openSettings) {
@@ -49,9 +51,10 @@ struct ChatView: View {
         .contentShape(Rectangle())
         .simultaneousGesture(
             DragGesture(minimumDistance: 25).onEnded { value in
-                guard value.translation.width > 50,
+                guard abs(value.translation.width) > 50,
                       abs(value.translation.width) > abs(value.translation.height) * 2 else { return }
-                openSettings()
+                if value.translation.width > 0 { openSettings() }
+                else { startNewChat() }
             }
         )
         .sheet(isPresented: $showSettings) { SettingsView() }
@@ -138,7 +141,15 @@ struct ChatView: View {
                 if let last = messages.last { proxy.scrollTo(last.id, anchor: .top) }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                HStack(spacing: 8) {
+                HStack(spacing: 4) {
+                    Button(action: startNewChat) {
+                        Image(systemName: "square.and.pencil")
+                            .frame(width: 44, height: 44)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.cyan)
+                    .accessibilityLabel("New chat")
+                    .accessibilityHint("Clears answers and returns to the microphone. You can also swipe left.")
                     if let last = messages.last {
                         Button {
                             if speech.isSpeaking { speech.stop() }
@@ -152,7 +163,7 @@ struct ChatView: View {
                         .accessibilityLabel(speech.isSpeaking ? "Stop reading" : "Read answer aloud")
                     }
                     Button(action: handleOrbTap) {
-                        Label("Ask", systemImage: "mic.fill")
+                        Text("Ask")
                             .font(.caption.weight(.semibold))
                             .frame(maxWidth: .infinity, minHeight: 44)
                             .background(Color.cyan.opacity(0.18), in: Capsule())
@@ -162,8 +173,9 @@ struct ChatView: View {
                     .accessibilityLabel("Ask a new question")
                     .accessibilityHint("Starts recording immediately")
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 2)
+                .padding(.horizontal, 8)
+                .padding(.top, 2)
+                .padding(.bottom, 8)
                 .background(.ultraThinMaterial)
             }
         }
@@ -185,6 +197,12 @@ struct ChatView: View {
             .padding(10)
             .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
         }
+    }
+
+    private func startNewChat() {
+        cancelActivity()
+        messages.removeAll()
+        WKInterfaceDevice.current().play(.click)
     }
 
     private func openSettings() {
@@ -241,6 +259,7 @@ struct ChatView: View {
         requestID = id
         let key = settings.apiKey(for: model.provider)
         let inputMode = settings.voiceInputMode
+        let replyLength = settings.replyLength
         let transcriptionKey = settings.apiKey(for: .google)
         let gatewayURL = settings.gatewayURL
         requestTask = Task { @MainActor in
@@ -251,9 +270,9 @@ struct ChatView: View {
                     try Task.checkCancellation()
                     guard requestID == id else { return }
                     pendingQuery = query
-                    response = try await apiService.sendMessage(messages: [Message(role: .user, content: query)], model: model, connectionMode: .bringYourOwnKey, apiKey: key, gatewayURL: gatewayURL)
+                    response = try await apiService.sendMessage(messages: [Message(role: .user, content: query)], model: model, connectionMode: .bringYourOwnKey, apiKey: key, gatewayURL: gatewayURL, replyLength: replyLength)
                 } else {
-                    response = try await apiService.sendAudioMessage(audioData: audioData, model: model, apiKey: key)
+                    response = try await apiService.sendAudioMessage(audioData: audioData, model: model, apiKey: key, replyLength: replyLength)
                 }
                 try Task.checkCancellation()
                 guard requestID == id else { return }

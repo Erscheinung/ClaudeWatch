@@ -32,6 +32,10 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(voiceInputMode.rawValue, forKey: Keys.voiceInputMode) }
     }
 
+    @Published var replyLength: ReplyLength {
+        didSet { UserDefaults.standard.set(replyLength.rawValue, forKey: Keys.replyLength) }
+    }
+
     @Published var readAloud: Bool {
         didSet { UserDefaults.standard.set(readAloud, forKey: Keys.readAloud) }
     }
@@ -43,9 +47,11 @@ final class AppSettings: ObservableObject {
         static let fallbackEnabled = "fallbackEnabled"
         static let voiceInputMode = "voiceInputMode"
         static let readAloud = "readAloud"
+        static let replyLength = "replyLength"
     }
 
     init() {
+        replyLength = ReplyLength(rawValue: UserDefaults.standard.string(forKey: Keys.replyLength) ?? "") ?? .balanced
         readAloud = UserDefaults.standard.object(forKey: Keys.readAloud) as? Bool ?? true
         let modelKey = UserDefaults.standard.string(forKey: Keys.selectedModel)
         selectedModel = modelKey.flatMap(AIModel.init(rawValue:)) ?? AIModel.geminiFlashLite

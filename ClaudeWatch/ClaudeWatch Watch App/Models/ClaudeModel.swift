@@ -13,6 +13,32 @@ enum VoiceInputMode: String, CaseIterable, Identifiable {
     }
 }
 
+enum ReplyLength: String, CaseIterable, Identifiable {
+    case light, balanced, heavy
+
+    var id: String { rawValue }
+    var title: String { rawValue.capitalized }
+    var maxOutputTokens: Int {
+        switch self {
+        case .light: return 256
+        case .balanced: return 768
+        case .heavy: return 2048
+        }
+    }
+    var instruction: String {
+        switch self {
+        case .light: return "Keep the answer brief, focusing on the essential facts."
+        case .balanced: return "Give a concise but complete answer with the explanation needed to understand it."
+        case .heavy: return "Give a detailed answer when useful, including relevant reasoning, steps, and examples."
+        }
+    }
+    var detail: String {
+        "Up to \(maxOutputTokens) output tokens. " + (self == .heavy
+            ? "More detail; may take longer and cost more."
+            : self == .light ? "Short replies, lower output cost." : "A balance of detail and output cost.")
+    }
+}
+
 enum ConnectionMode: String, CaseIterable, Identifiable {
     case freeCloud
     case bringYourOwnKey
