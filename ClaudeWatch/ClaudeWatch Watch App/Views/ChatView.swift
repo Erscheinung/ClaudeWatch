@@ -32,6 +32,7 @@ struct ChatView: View {
             VStack(spacing: 0) {
                 if showsVoiceStage { voiceStage } else {
                     conversation
+                        .ignoresSafeArea(.container, edges: .bottom)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -121,64 +122,75 @@ struct ChatView: View {
 
     private var conversation: some View {
         ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 18) {
-                    ForEach(messages) { message in
-                        VStack(alignment: .leading, spacing: 7) {
-                            Text(message.model ?? "Answer")
-                                .font(.caption2).foregroundStyle(.secondary)
-                            AnswerText(content: message.content)
+            // Reserve the footer's actual height instead of stacking a bottom
+            // safe-area inset above watchOS's already generous bottom margin.
+            VStack(spacing: 0) {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 18) {
+                        ForEach(messages) { message in
+                            VStack(alignment: .leading, spacing: 7) {
+                                Text(message.model ?? "Answer")
+                                    .font(.caption2).foregroundStyle(.secondary)
+                                AnswerText(content: message.content)
+                            }
+                            .id(message.id)
+                            if message.id != messages.last?.id { Divider() }
                         }
-                        .id(message.id)
-                        if message.id != messages.last?.id { Divider() }
+                        errorCard
                     }
-                    errorCard
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-            }
-            .onAppear {
-                if let last = messages.last { proxy.scrollTo(last.id, anchor: .top) }
-            }
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                HStack(spacing: 4) {
-                    Button(action: startNewChat) {
-                        Image(systemName: "square.and.pencil")
-                            .frame(width: 44, height: 44)
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.cyan)
-                    .accessibilityLabel("New chat")
-                    .accessibilityHint("Clears answers and returns to the microphone. You can also swipe left.")
-                    if let last = messages.last {
-                        Button {
-                            if speech.isSpeaking { speech.stop() }
-                            else { speech.speak(AnswerFormatting.plainText(last.content)) }
-                        } label: {
-                            Image(systemName: speech.isSpeaking ? "stop.fill" : "speaker.wave.2.fill")
-                                .frame(width: 44, height: 44)
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(speech.isSpeaking ? Color.cyan : Color.secondary)
-                        .accessibilityLabel(speech.isSpeaking ? "Stop reading" : "Read answer aloud")
-                    }
-                    Button(action: handleOrbTap) {
-                        Text("Ask")
-                            .font(.caption.weight(.semibold))
-                            .frame(maxWidth: .infinity, minHeight: 44)
-                            .background(Color.cyan.opacity(0.18), in: Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.cyan)
-                    .accessibilityLabel("Ask a new question")
-                    .accessibilityHint("Starts recording immediately")
+                .onAppear {
+                    if let last = messages.last { proxy.scrollTo(last.id, anchor: .top) }
                 }
-                .padding(.horizontal, 8)
-                .padding(.top, 2)
-                .padding(.bottom, 8)
-                .background(.ultraThinMaterial)
+                conversationControls
             }
         }
+    }
+
+    private var conversationControls: some View {
+        HStack(spacing: 4) {
+            Button(action: startNewChat) {
+                Image(systemName: "square.and.pencil")
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.cyan)
+            .accessibilityLabel("New chat")
+            .accessibilityHint("Clears answers and returns to the microphone. You can also swipe left.")
+            if let last = messages.last {
+                Button {
+                    if speech.isSpeaking { speech.stop() }
+                    else { speech.speak(AnswerFormatting.plainText(last.content)) }
+                } label: {
+                    Image(systemName: speech.isSpeaking ? "stop.fill" : "speaker.wave.2.fill")
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(speech.isSpeaking ? Color.cyan : Color.secondary)
+                .accessibilityLabel(speech.isSpeaking ? "Stop reading" : "Read answer aloud")
+            }
+            Button(action: handleOrbTap) {
+                Text("Ask")
+                    .font(.caption.weight(.semibold))
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .background(Color.cyan.opacity(0.18), in: Capsule())
+                    .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.cyan)
+            .accessibilityLabel("Ask a new question")
+            .accessibilityHint("Starts recording immediately")
+        }
+        // Keep the row above the curved bottom edge without retaining the
+        // system's unused bottom inset. All three controls share one baseline.
+        .padding(.horizontal, 16)
+        .padding(.top, 2)
+        .padding(.bottom, 8)
+        .background(.ultraThinMaterial)
     }
 
     @ViewBuilder private var errorCard: some View {
