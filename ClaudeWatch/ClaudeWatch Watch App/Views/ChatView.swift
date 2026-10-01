@@ -31,7 +31,7 @@ struct ChatView: View {
                 .ignoresSafeArea()
             VStack(spacing: 0) {
                 if showsVoiceStage { voiceStage } else {
-                    conversation.ignoresSafeArea(.container, edges: .bottom)
+                    conversation
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -429,6 +429,7 @@ private final class VoiceRecorder: NSObject, ObservableObject, AVAudioRecorderDe
     }
 
     func cancel() {
+        let sessionID = preparationID
         preparationID = nil
         timer?.invalidate()
         timer = nil
@@ -438,7 +439,7 @@ private final class VoiceRecorder: NSObject, ObservableObject, AVAudioRecorderDe
         recordingURL = nil
         isPreparing = false
         isRecording = false
-        AudioSessionController.deactivate()
+        if let sessionID { AudioSessionController.release(sessionID) }
     }
 
     private func fail(_ message: String) {
@@ -448,21 +449,14 @@ private final class VoiceRecorder: NSObject, ObservableObject, AVAudioRecorderDe
 
     private func startRecorder(id: UUID) {
         guard preparationID == id else { return }
-        do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playAndRecord, mode: .spokenAudio)
-            AudioSessionController.activate { [weak self] activated in
-                guard let self, self.preparationID == id else {
-                    if activated { AudioSessionController.deactivate() }
-                    return
-                }
-                guard activated else {
-                    self.fail("Couldn’t start the microphone. Please try again.")
-                    return
-                }
-                self.createRecorder(id: id)
+        AudioSessionController.activate(id: id, category: .playAndRecord) { [weak self] activated in
+            guard let self, self.preparationID == id else { return }
+            guard activated else {
+                self.fail("Couldn’t start the microphone. Please try again.")
+                return
             }
-        } catch { fail("Couldn’t start the microphone: \(error.localizedDescription)") }
+            self.createRecorder(id: id)
+        }
     }
 
     private func createRecorder(id: UUID) {
@@ -511,82 +505,172 @@ private final class VoiceRecorder: NSObject, ObservableObject, AVAudioRecorderDe
     }
 }
 
+// One owner and an ordered operation chain prevent a cancelled activation from
+// releasing a newer recording/playback session. The main actor only owns state;
+// synchronous audio-service work runs on a dedicated queue.
 @MainActor
 private enum AudioSessionController {
-    static func activate(completion: @escaping (Bool) -> Void) {
-        AVAudioSession.sharedInstance().activate(options: []) { activated, _ in
-            Task { @MainActor in completion(activated) }
+    private static let queue = DispatchQueue(label: "ClaudeWatch.audio-session", qos: .userInitiated)
+    private static var owner: UUID?
+    private static var isActive = false
+    private static var pendingOperation: Task<Void, Never>?
+
+    private static func enqueue(_ operation: @escaping @MainActor () async -> Void) {
+        let previous = pendingOperation
+        pendingOperation = Task {
+            await previous?.value
+            await operation()
         }
     }
 
-    static func deactivate() {
-        AVAudioSession.sharedInstance().deactivate(options: .notifyOthersOnDeactivation) { _, _ in }
+    static func activate(id: UUID, category: AVAudioSession.Category,
+                         completion: @escaping @MainActor (Bool) -> Void) {
+        owner = id
+        enqueue {
+            guard owner == id else { completion(false); return }
+            await deactivateIfNeeded()
+            guard owner == id else { completion(false); return }
+            let configured = await withCheckedContinuation { continuation in
+                queue.async {
+                    do {
+                        try AVAudioSession.sharedInstance().setCategory(category, mode: .spokenAudio)
+                        continuation.resume(returning: true)
+                    } catch { continuation.resume(returning: false) }
+                }
+            }
+            guard configured, owner == id else { completion(false); return }
+            let activated = await withCheckedContinuation { continuation in
+                queue.async {
+                    AVAudioSession.sharedInstance().activate(options: []) { activated, _ in
+                        continuation.resume(returning: activated)
+                    }
+                }
+            }
+            isActive = activated
+            guard owner == id else {
+                await deactivateIfNeeded()
+                completion(false)
+                return
+            }
+            completion(activated)
+        }
+    }
+
+    static func release(_ id: UUID, after stopping: Task<Void, Never>? = nil) {
+        guard owner == id else { return }
+        owner = nil
+        enqueue {
+            await stopping?.value
+            await deactivateIfNeeded()
+        }
+    }
+
+    private static func deactivateIfNeeded() async {
+        guard isActive else { return }
+        let deactivated = await withCheckedContinuation { continuation in
+            queue.async {
+                AVAudioSession.sharedInstance().deactivate(options: .notifyOthersOnDeactivation) { success, _ in
+                    continuation.resume(returning: success)
+                }
+            }
+        }
+        if deactivated { isActive = false }
     }
 }
 
 @MainActor
-private final class SpeechOutput: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
+private final class SpeechOutput: ObservableObject {
     @Published private(set) var isSpeaking = false
-    private let synthesizer = AVSpeechSynthesizer()
-    private var currentUtterance: AVSpeechUtterance?
+    private let playback = SpeechPlayback()
     private var activationID: UUID?
 
-    override init() {
-        super.init()
-        synthesizer.delegate = self
-    }
     func speak(_ text: String) {
         stop()
         guard !text.isEmpty else { return }
-        let activationID = UUID()
-        self.activationID = activationID
-        do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .spokenAudio)
-        } catch {
-            self.activationID = nil
-            return
-        }
-        AudioSessionController.activate { [weak self] activated in
-            guard let self, self.activationID == activationID else {
-                if activated { AudioSessionController.deactivate() }
-                return
+        let id = UUID()
+        activationID = id
+        // Stop is available while activation or voice preparation is pending too.
+        isSpeaking = true
+        AudioSessionController.activate(id: id, category: .playback) { [weak self] activated in
+            guard let self, self.activationID == id else { return }
+            guard activated else { self.stop(); return }
+            self.playback.speak(text, id: id) { [weak self] finishedID in
+                Task { @MainActor in
+                    guard let self, self.activationID == finishedID else { return }
+                    self.activationID = nil
+                    self.isSpeaking = false
+                    AudioSessionController.release(finishedID)
+                }
             }
-            guard activated else {
-                self.activationID = nil
-                return
-            }
-            self.startSpeaking(text)
         }
     }
 
-    private func startSpeaking(_ text: String) {
-        guard activationID != nil else { return }
-        let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: Locale.current.identifier)
-        utterance.rate = 0.48
-        currentUtterance = utterance
-        isSpeaking = true
-        synthesizer.speak(utterance)
-    }
     func stop() {
+        guard let id = activationID else { return }
         activationID = nil
-        currentUtterance = nil
-        if synthesizer.isSpeaking { synthesizer.stopSpeaking(at: .immediate) }
-        if isSpeaking { AudioSessionController.deactivate() }
         isSpeaking = false
+        let playback = playback
+        let stopping = Task { await playback.stop() }
+        AudioSessionController.release(id, after: stopping)
     }
+}
+
+// All synthesizer access, including first-use voice loading and its implicit
+// audio-session calls, is confined to this queue rather than the UI thread.
+private final class SpeechPlayback: NSObject, AVSpeechSynthesizerDelegate, @unchecked Sendable {
+    private let queue = DispatchQueue(label: "ClaudeWatch.speech", qos: .userInitiated)
+    private var synthesizer: AVSpeechSynthesizer?
+    private var utterance: AVSpeechUtterance?
+    private var completion: (@Sendable (UUID) -> Void)?
+    private var playbackID: UUID?
+
+    func speak(_ text: String, id: UUID, completion: @escaping @Sendable (UUID) -> Void) {
+        queue.async {
+            if self.synthesizer == nil {
+                self.synthesizer = AVSpeechSynthesizer()
+                self.synthesizer?.delegate = self
+            }
+            let utterance = AVSpeechUtterance(string: text)
+            utterance.voice = AVSpeechSynthesisVoice(language: Locale.current.identifier)
+            utterance.rate = 0.48
+            self.utterance = utterance
+            self.playbackID = id
+            self.completion = completion
+            self.synthesizer?.speak(utterance)
+        }
+    }
+
+    func stop() async {
+        await withCheckedContinuation { continuation in
+            queue.async {
+                self.utterance = nil
+                self.playbackID = nil
+                self.completion = nil
+                // Also clears queued/paused speech; isSpeaking is not a reliable
+                // guard while the synthesizer is preparing an utterance.
+                self.synthesizer?.stopSpeaking(at: .immediate)
+                continuation.resume()
+            }
+        }
+    }
+
     private func finished(_ utterance: AVSpeechUtterance) {
-        guard currentUtterance === utterance else { return }
-        currentUtterance = nil
-        isSpeaking = false
-        AudioSessionController.deactivate()
+        queue.async {
+            guard self.utterance === utterance, let id = self.playbackID else { return }
+            let completion = self.completion
+            self.utterance = nil
+            self.playbackID = nil
+            self.completion = nil
+            completion?(id)
+        }
     }
-    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        Task { @MainActor in finished(utterance) }
+
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        finished(utterance)
     }
-    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
-        Task { @MainActor in finished(utterance) }
+
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
+        finished(utterance)
     }
 }
 

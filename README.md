@@ -11,7 +11,7 @@ A standalone, voice-first watchOS assistant. Originally built for Claude, the ap
 - **Ask again.** A persistent bottom Ask button starts a new recording immediately. The answer area extends toward the bottom edge, with controls kept below the text.
 - **Start fresh.** Tap the new-chat (square and pencil) button beside Ask, or swipe left, to clear displayed answers and return to the microphone. This also cancels recording, pending requests, and playback. Ask keeps previous answers on screen; questions are still independent.
 - **Choose reply length.** Settings → Replies → Output length offers Light (256 tokens), Balanced (768 tokens, the default), and Heavy (2,048 tokens). The setting persists and applies to text and audio answers without changing the model. Heavy allows more detail and can take longer or cost more; it does not guarantee accuracy.
-- **Choose whether to listen.** Settings → Replies → Read aloud is on by default and persists across launches. Switch it off for text-only replies. The speaker button reads the latest answer on demand, and changes to Stop during playback. Speech uses the formatted answer’s plain text.
+- **Choose whether to listen.** Settings → Replies → Read aloud is on by default and persists across launches. Switch it off for text-only replies. The speaker button reads the latest answer on demand, and changes to Stop while speech is preparing or playing. Stop cancels queued and active narration, and the controls stay inside the watch’s safe area. Speech uses the formatted answer’s plain text.
 - **Find settings.** Swipe right, or tap the faint handle and chevron on the left edge. The home screen also includes a quiet swipe hint. Opening Settings cancels active recording or requests and stops speech.
 
 Animations run only during active voice states and respect Reduce Motion and reduced luminance. Buttons have VoiceOver labels. Leaving the app for the background cancels microphone activity and pending requests. Conversation history stays in memory for the current session; each question is sent independently.
@@ -37,7 +37,9 @@ open ClaudeWatch.xcodeproj
 
 Select **ClaudeWatch Watch App**, choose your signing team and bundle identifier, then run on your watch. Add the **Claude Watch** microphone complication from the watch face editor to launch the app quickly.
 
-The UX overhaul and subsequent answer-layout, New Chat, and output-length changes were implemented without builds, tests, simulator runs, or device testing at the user's request. Device validation is still pending, including small displays, accessibility sizes, audio interruptions, and the animated recording flow.
+The UX overhaul and subsequent answer-layout, New Chat, and output-length changes were implemented without builds, tests, simulator runs, or device testing at the user's request. The narration Stop and audio responsiveness fix subsequently passed a Debug build for the watchOS simulator and an isolated Swift harness using the actual audio lifecycle code with mock audio APIs. The harness covered cancellation during activation, replacement playback, stale completion/release callbacks, natural completion, and audio work staying off the main thread. No simulator app launch or watch installation was performed. Device validation is still pending, including first launch after reinstall, small displays, accessibility sizes, audio interruptions, and the animated recording flow.
+
+Audio-session transitions are ordered and tied to the recording or narration that owns them. Category changes and speech synthesis run on dedicated queues; activation and deactivation use the asynchronous watchOS APIs. Cancellation updates the controls immediately and stops speech before releasing its audio session. Old callbacks cannot release a newer session. [Apple documents that stopping speech clears unspoken utterances too](https://developer.apple.com/documentation/avfaudio/avspeechsynthesizer/stopspeaking(at:)).
 
 ## Project layout
 
