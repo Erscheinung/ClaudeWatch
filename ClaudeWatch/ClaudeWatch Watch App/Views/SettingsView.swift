@@ -9,19 +9,35 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
+                Section {
+                    NavigationLink { ModelPickerView() } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: settings.preferredModel?.icon ?? "key.fill")
+                                .foregroundStyle(Color.cyan)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(settings.preferredModel?.displayName ?? "Choose a model")
+                                    .font(.headline)
+                                Text(settings.preferredModel.map { "Key saved · \($0.provider.displayName)" } ?? "Add a provider key below")
+                                    .font(.caption2).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+                Section("Read aloud") {
+                    Toggle("Read answers", isOn: $settings.readAloud)
+                    NavigationLink { VoicePickerView() } label: {
+                        HStack { Text("Voice"); Spacer(); Text(VoiceCatalog.label(forSlot: settings.voiceSlot)).font(.caption2).foregroundStyle(.secondary) }
+                    }
+                    Picker("Speed", selection: $settings.speechSpeed) {
+                        ForEach(SpeechSpeed.allCases) { Text($0.title).tag($0) }
+                    }
+                }
                 Section("Replies") {
                     Picker("Output length", selection: $settings.replyLength) {
                         ForEach(ReplyLength.allCases) { length in
                             Text(length.title).tag(length)
                         }
                     }
-                    Text(settings.replyLength.detail)
-                        .font(.caption2).foregroundStyle(.secondary)
-                    Text("Controls reply length, not the model. Longer replies do not guarantee accuracy.")
-                        .font(.caption2).foregroundStyle(.secondary)
-                    Toggle("Read aloud", isOn: $settings.readAloud)
-                    Text(settings.readAloud ? "Answers appear as text and are read aloud." : "Answers appear as text only. Tap the speaker on an answer to listen.")
-                        .font(.caption2).foregroundStyle(.secondary)
                 }
                 Section("Voice") {
                     Picker("Send as", selection: $settings.voiceInputMode) {
@@ -29,19 +45,12 @@ struct SettingsView: View {
                             Text(mode.title).tag(mode)
                         }
                     }
-                    Text(settings.voiceInputMode.detail).font(.caption2).foregroundStyle(Color.secondary)
-                    Text(settings.voiceInputMode == .text ? "Lowest cost · works with every model" : "Natural voice context · Gemini only")
-                        .font(.caption2)
-                        .foregroundStyle(settings.voiceInputMode == .text ? Color.green : Color.orange)
-                }
-                Section("Model") {
-                    NavigationLink { ModelPickerView() } label: {
-                        HStack { Image(systemName: (settings.preferredModel ?? .geminiFlashLite).icon).foregroundStyle(Color.cyan); Text(settings.preferredModel?.displayName ?? "Add a key"); Spacer(); Text(settings.preferredModel?.provider.displayName ?? "").font(.caption2).foregroundStyle(Color.secondary) }
-                    }
+                    Text(settings.voiceInputMode == .text ? "Gemini transcribes your recording; your selected model answers. Requires a Gemini key." : "Sends your recording directly to Gemini. Requires a Gemini model and key.")
+                        .font(.caption2).foregroundStyle(.secondary)
                 }
                 Section("Gemini") {
                     Button { editingProvider = .google } label: {
-                        HStack { Image(systemName: "key.fill").foregroundStyle(settings.hasAPIKey(for: .google) ? Color.green : Color.orange); Text(settings.hasAPIKey(for: .google) ? "Gemini key added" : "Add Gemini key"); Spacer(); Image(systemName: "chevron.right").font(.caption2).foregroundStyle(Color.secondary) }
+                        HStack { Image(systemName: "key.fill").foregroundStyle(settings.hasAPIKey(for: .google) ? Color.green : Color.orange); Text(settings.hasAPIKey(for: .google) ? "Gemini key saved" : "Add Gemini key"); Spacer(); Image(systemName: "chevron.right").font(.caption2).foregroundStyle(Color.secondary) }
                     }
                     Text("Your key stays in this watch’s Keychain.").font(.caption2).foregroundStyle(Color.secondary)
                 }
@@ -51,7 +60,7 @@ struct SettingsView: View {
                 Section("Other providers") {
                     ForEach(AIProvider.allCases.filter { $0 != .google }) { provider in
                         Button { editingProvider = provider } label: {
-                            HStack { Text(provider.displayName); Spacer(); Text(settings.hasAPIKey(for: provider) ? "Added" : "Add").font(.caption2).foregroundStyle(Color.secondary) }
+                            HStack { Text(provider.displayName); Spacer(); Text(settings.hasAPIKey(for: provider) ? "Key saved" : "Add").font(.caption2).foregroundStyle(Color.secondary) }
                         }
                     }
                 }
@@ -64,6 +73,48 @@ struct SettingsView: View {
             .sheet(item: $editingProvider) { APIKeyEditorView(provider: $0) }
             .sheet(isPresented: $showGatewayEditor) { GatewayEditorView() }
         }
+    }
+}
+
+/// "Female 1", "Male 1", ... Tap a voice to hear it. Voices are read on a background task because the first
+/// lookup can be slow on a watch.
+private struct VoicePickerView: View {
+    @EnvironmentObject private var settings: AppSettings
+    @StateObject private var preview = SpeechOutput()
+    @State private var options: [VoiceOption] = []
+    @State private var loaded = false
+
+    var body: some View {
+        List {
+            if !loaded { ProgressView() }
+            ForEach(options) { option in
+                Button {
+                    settings.voiceSlot = option.id
+                    preview.speak(sentences: SpeechText.previewSentences, voiceSlot: option.id, speed: settings.speechSpeed)
+                } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(option.label)
+                            Text([option.voiceName, option.detail].filter { !$0.isEmpty }.joined(separator: " · "))
+                                .font(.caption2).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        if option.id == settings.voiceSlot { Image(systemName: "checkmark").foregroundStyle(Color.cyan) }
+                    }
+                }
+                .accessibilityHint("Plays a sample of this voice")
+            }
+            if loaded {
+                Text("Tap a voice to hear it. Apple Watch includes standard-quality voices only.")
+                    .font(.caption2).foregroundStyle(.secondary)
+            }
+        }
+        .navigationTitle("Voice")
+        .task {
+            options = await Task.detached(priority: .userInitiated) { VoiceCatalog.options() }.value
+            loaded = true
+        }
+        .onDisappear { preview.stop() }
     }
 }
 
@@ -90,11 +141,11 @@ private struct SetupHelpView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 11) {
                 Text("Quick setup").font(.headline)
-                help("1", "Choose Gemini Flash-Lite", "It is the fast default for short voice replies.")
-                help("2", "Add your Gemini API key", "Settings → Gemini → Add Gemini key. The key is saved only in Keychain.")
+                help("1", "Set up on iPhone", "Open the ClaudeWatch companion on your paired iPhone. Paste your Gemini key, tap Verify, choose a model, then tap Send to Watch.")
+                help("2", "Or add a key here", "Settings → Gemini → Add Gemini key. Keys are stored in Keychain. Both Audio and Text voice input require a Gemini key.")
                 help("3", "Talk", "Tap the mic once, speak, then tap the arrow to send. Cancel discards the recording. Questions send automatically at 60 seconds.")
                 help("4", "Reply length", "Settings → Replies → Output length offers Light, Balanced, and Heavy. Balanced is the default; the model stays the same.")
-                help("5", "Listen", "Read the answer and tap Ask for another independent question. Tap the new-chat icon or swipe left to clear answers and return to the mic. Turn off Read aloud for text-only replies. Swipe right or tap the faint left-edge cue for Settings.")
+                help("5", "Listen", "Read the answer and tap Ask for another independent question. Tap the new-chat icon or swipe left to clear answers and return to the mic. Turn off Settings → Read aloud → Read answers for text-only replies. Tap Stop to end narration. Tap the model chip on the home screen to switch models. Swipe right or tap the faint left-edge cue for Settings.")
             }.padding()
         }.navigationTitle("Setup")
     }
