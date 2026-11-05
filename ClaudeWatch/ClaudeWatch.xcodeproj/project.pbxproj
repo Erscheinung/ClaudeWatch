@@ -7,6 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0F6D919EA11FDE1D9920E5EA /* GeminiModelCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D1582C71DC3D17A68132DD3 /* GeminiModelCatalog.swift */; };
+		13C27BC796BCF4E48C5FA554 /* CompanionConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD2F061FE6260E1108C19276 /* CompanionConnection.swift */; };
+		1BC4400FA6C9FDA63ECD0D63 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 09B3EC8724A220223F0C2CC1 /* Foundation.framework */; };
+		57B8EB276EC5D01D4C030959 /* ClaudeModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00006 /* ClaudeModel.swift */; };
+		854FCDC4F8066CE7B2AB8DC9 /* ClaudeWatchPhoneApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 182C9B6734EB686A1F0F2083 /* ClaudeWatchPhoneApp.swift */; };
 		AAA00001 /* ClaudeWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00001 /* ClaudeWatchApp.swift */; };
 		AAA00002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00002 /* ContentView.swift */; };
 		AAA00003 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00003 /* ChatView.swift */; };
@@ -16,9 +21,14 @@
 		AAA00007 /* Message.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00007 /* Message.swift */; };
 		AAA00008 /* ClaudeAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00008 /* ClaudeAPIService.swift */; };
 		AAA00010 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AAB00010 /* Assets.xcassets */; };
+		AAA00020 /* VoiceCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00020 /* VoiceCatalog.swift */; };
+		AAA00021 /* SpeechText.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00021 /* SpeechText.swift */; };
 		BBA00001 /* ClaudeWatchComplication.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB00001 /* ClaudeWatchComplication.swift */; };
 		BBA00002 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BBB00003 /* WidgetKit.framework */; };
 		BBA00003 /* ClaudeWatchComplication.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = BBC00001 /* ClaudeWatchComplication.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		E1CF649C103D81479D278C08 /* ClaudeWatch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = AAC00001 /* ClaudeWatch Watch App.app */; };
+		E921460DA978DC25454529BD /* CompanionConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD2F061FE6260E1108C19276 /* CompanionConnection.swift */; };
+		E953314E73159AF218357F77 /* GeminiModelCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D1582C71DC3D17A68132DD3 /* GeminiModelCatalog.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -28,6 +38,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = AAF00002;
 			remoteInfo = ClaudeWatchComplication;
+		};
+		F8EB8D6758AD7B5E096119AD /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AAH00001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AAF00001;
+			remoteInfo = "ClaudeWatch Watch App";
 		};
 /* End PBXContainerItemProxy section */
 
@@ -43,9 +60,24 @@
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		FF1F19DE4E02C3D1231229D2 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				E1CF649C103D81479D278C08 /* ClaudeWatch Watch App.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		09B3EC8724A220223F0C2CC1 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS12.2.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		182C9B6734EB686A1F0F2083 /* ClaudeWatchPhoneApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClaudeWatchPhoneApp.swift; sourceTree = "<group>"; };
+		3D1582C71DC3D17A68132DD3 /* GeminiModelCatalog.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GeminiModelCatalog.swift; sourceTree = "<group>"; };
+		7087A1695138FE0821327694 /* ClaudeWatch iPhone App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "ClaudeWatch iPhone App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		AAB00001 /* ClaudeWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeWatchApp.swift; sourceTree = "<group>"; };
 		AAB00002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		AAB00003 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
@@ -56,14 +88,25 @@
 		AAB00008 /* ClaudeAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeAPIService.swift; sourceTree = "<group>"; };
 		AAB00010 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AAB00011 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		AAB00020 /* VoiceCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCatalog.swift; sourceTree = "<group>"; };
+		AAB00021 /* SpeechText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechText.swift; sourceTree = "<group>"; };
 		AAC00001 /* ClaudeWatch Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "ClaudeWatch Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BBB00001 /* ClaudeWatchComplication.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeWatchComplication.swift; sourceTree = "<group>"; };
 		BBB00002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		BBB00003 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		BBC00001 /* ClaudeWatchComplication.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ClaudeWatchComplication.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		BD2F061FE6260E1108C19276 /* CompanionConnection.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CompanionConnection.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		750435D694651C0B00AE506A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1BC4400FA6C9FDA63ECD0D63 /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		AAD00001 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -82,6 +125,31 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		22C9E2EDE9FE688D83E1CB52 /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				09B3EC8724A220223F0C2CC1 /* Foundation.framework */,
+			);
+			name = iOS;
+			sourceTree = "<group>";
+		};
+		71906FEE3586313A129F41C6 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				22C9E2EDE9FE688D83E1CB52 /* iOS */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		8144175DAB52D0FB61515090 /* ClaudeWatch iPhone App */ = {
+			isa = PBXGroup;
+			children = (
+				182C9B6734EB686A1F0F2083 /* ClaudeWatchPhoneApp.swift */,
+			);
+			name = "ClaudeWatch iPhone App";
+			path = "ClaudeWatch iPhone App";
+			sourceTree = "<group>";
+		};
 		AAE00001 = {
 			isa = PBXGroup;
 			children = (
@@ -89,6 +157,9 @@
 				AAE00007 /* ClaudeWatchComplication */,
 				AAE00003 /* Products */,
 				BBB00003 /* WidgetKit.framework */,
+				EE4F5248FA9793DE06ECF6A1 /* Shared */,
+				8144175DAB52D0FB61515090 /* ClaudeWatch iPhone App */,
+				71906FEE3586313A129F41C6 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -111,6 +182,7 @@
 			children = (
 				AAC00001 /* ClaudeWatch Watch App.app */,
 				BBC00001 /* ClaudeWatchComplication.appex */,
+				7087A1695138FE0821327694 /* ClaudeWatch iPhone App.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -130,6 +202,8 @@
 			children = (
 				AAB00006 /* ClaudeModel.swift */,
 				AAB00007 /* Message.swift */,
+				AAB00020 /* VoiceCatalog.swift */,
+				AAB00021 /* SpeechText.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -151,9 +225,38 @@
 			path = ClaudeWatchComplication;
 			sourceTree = "<group>";
 		};
+		EE4F5248FA9793DE06ECF6A1 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				3D1582C71DC3D17A68132DD3 /* GeminiModelCatalog.swift */,
+				BD2F061FE6260E1108C19276 /* CompanionConnection.swift */,
+			);
+			name = Shared;
+			path = Shared;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		48603A43B4CD190A4E31265D /* ClaudeWatch iPhone App */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 468AAB779ABCBFCE5AF25F41 /* Build configuration list for PBXNativeTarget "ClaudeWatch iPhone App" */;
+			buildPhases = (
+				E3FC1C5EA4D334E7BC77C0A4 /* Sources */,
+				750435D694651C0B00AE506A /* Frameworks */,
+				5AB1A4F7325D163B1C7D74AF /* Resources */,
+				FF1F19DE4E02C3D1231229D2 /* Embed Watch Content */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C287DA2A87CCE2CF0E690F0E /* PBXTargetDependency */,
+			);
+			name = "ClaudeWatch iPhone App";
+			productName = "ClaudeWatch iPhone App";
+			productReference = 7087A1695138FE0821327694 /* ClaudeWatch iPhone App.app */;
+			productType = "com.apple.product-type.application";
+		};
 		AAF00001 /* ClaudeWatch Watch App */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = AAG00003 /* Build configuration list for PBXNativeTarget "ClaudeWatch Watch App" */;
@@ -222,11 +325,19 @@
 			targets = (
 				AAF00001 /* ClaudeWatch Watch App */,
 				AAF00002 /* ClaudeWatchComplication */,
+				48603A43B4CD190A4E31265D /* ClaudeWatch iPhone App */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		5AB1A4F7325D163B1C7D74AF /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		AAD00003 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -249,7 +360,11 @@
 				AAA00005 /* MessageBubble.swift in Sources */,
 				AAA00006 /* ClaudeModel.swift in Sources */,
 				AAA00007 /* Message.swift in Sources */,
+				AAA00020 /* VoiceCatalog.swift in Sources */,
+				AAA00021 /* SpeechText.swift in Sources */,
 				AAA00008 /* ClaudeAPIService.swift in Sources */,
+				E953314E73159AF218357F77 /* GeminiModelCatalog.swift in Sources */,
+				E921460DA978DC25454529BD /* CompanionConnection.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -261,6 +376,17 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E3FC1C5EA4D334E7BC77C0A4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				854FCDC4F8066CE7B2AB8DC9 /* ClaudeWatchPhoneApp.swift in Sources */,
+				0F6D919EA11FDE1D9920E5EA /* GeminiModelCatalog.swift in Sources */,
+				13C27BC796BCF4E48C5FA554 /* CompanionConnection.swift in Sources */,
+				57B8EB276EC5D01D4C030959 /* ClaudeModel.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -269,9 +395,46 @@
 			target = AAF00002 /* ClaudeWatchComplication */;
 			targetProxy = AAI00001 /* PBXContainerItemProxy */;
 		};
+		C287DA2A87CCE2CF0E690F0E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = "ClaudeWatch Watch App";
+			target = AAF00001 /* ClaudeWatch Watch App */;
+			targetProxy = F8EB8D6758AD7B5E096119AD /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		79F12B204B68CC4F1DBBD65E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = T5BW64AW3P;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = ClaudeWatch;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.Erscheinung.ClaudeWatch;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 		AAG00002 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -408,7 +571,8 @@
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Claude Watch needs microphone access to transcribe your voice messages.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Claude Watch uses speech recognition to convert your voice to text for sending messages to Claude.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKWatchOnly = YES;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.Erscheinung.ClaudeWatch;
+				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -440,7 +604,8 @@
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Claude Watch needs microphone access to transcribe your voice messages.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Claude Watch uses speech recognition to convert your voice to text for sending messages to Claude.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKWatchOnly = YES;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.Erscheinung.ClaudeWatch;
+				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -508,9 +673,48 @@
 			};
 			name = Release;
 		};
+		D3E100D25C6CFE8E09F23554 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = T5BW64AW3P;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = ClaudeWatch;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.Erscheinung.ClaudeWatch;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		468AAB779ABCBFCE5AF25F41 /* Build configuration list for PBXNativeTarget "ClaudeWatch iPhone App" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				79F12B204B68CC4F1DBBD65E /* Release */,
+				D3E100D25C6CFE8E09F23554 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		AAG00001 /* Build configuration list for PBXProject "ClaudeWatch" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

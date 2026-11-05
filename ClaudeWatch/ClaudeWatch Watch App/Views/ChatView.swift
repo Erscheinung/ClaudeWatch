@@ -11,10 +11,14 @@ struct ChatView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showSettings = false
+    @State private var showModelPicker = false
     @State private var pendingQuery: String?
     @State private var retryAudio: Data?
     @State private var requestTask: Task<Void, Never>?
     @State private var requestID: UUID?
+    #if DEBUG
+    @State private var didApplyUIDemo = false
+    #endif
     private let apiService = ChatAPIService()
 
     private var state: OrbState {
@@ -59,6 +63,7 @@ struct ChatView: View {
             }
         )
         .sheet(isPresented: $showSettings) { SettingsView() }
+        .sheet(isPresented: $showModelPicker) { ModelPickerView() }
         .onChange(of: settings.readAloud) { _, enabled in
             if !enabled { speech.stop() }
         }
@@ -75,7 +80,34 @@ struct ChatView: View {
             if phase == .background { cancelActivity() }
         }
         .onDisappear { cancelActivity() }
+        #if DEBUG
+        .onAppear { applyUIDemoIfRequested() }
+        #endif
     }
+
+    #if DEBUG
+    private func applyUIDemoIfRequested() {
+        guard !didApplyUIDemo else { return }
+        didApplyUIDemo = true
+        let arguments = ProcessInfo.processInfo.arguments
+        guard arguments.contains("--ui-demo-answer") else { return }
+        let sample = """
+        **Sample answer for UI testing**
+
+        This is synthetic demonstration text, not a response from an AI provider. No question was recorded or sent.
+
+        - Scroll to read the sample at your preferred text size.
+        - The controls below remain separate from the answer.
+        - Tap Stop to end this sample's narration, or use the speaker to read it again.
+
+        This extra paragraph provides enough content to check reading and scrolling on a small watch display. The sample uses the same formatting and playback controls as an ordinary answer. It does not change your saved model, voice, speed, or API keys.
+        """
+        messages = [Message(role: .assistant, content: sample, model: "UI demo · Sample")]
+        if arguments.contains("--ui-demo-speaking") {
+            speech.speak(answer: sample, voiceSlot: settings.voiceSlot, speed: settings.speechSpeed)
+        }
+    }
+    #endif
 
     private var voiceStage: some View {
         GeometryReader { geometry in
@@ -103,10 +135,14 @@ struct ChatView: View {
                         .font(.caption)
                         .buttonStyle(.plain)
                         .frame(minHeight: 44)
-                } else if errorMessage == nil {
-                    Text("Swipe right for settings")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                } else {
+                    modelChip
+                        .padding(.horizontal, -12)
+                    if errorMessage == nil {
+                        Text("Swipe right for settings")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
                 }
                 if let pendingQuery {
                     Text(pendingQuery).font(.caption).foregroundStyle(.secondary)
@@ -149,48 +185,105 @@ struct ChatView: View {
         }
     }
 
-    private var conversationControls: some View {
-        HStack(spacing: 4) {
-            Button(action: startNewChat) {
-                Image(systemName: "square.and.pencil")
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
+    private var modelChip: some View {
+        Button {
+            cancelActivity()
+            showModelPicker = true
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: settings.preferredModel?.icon ?? "key.fill")
+                    .foregroundStyle(.cyan)
+                Text(settings.preferredModel?.displayName ?? "Choose a model")
+                    .font(.caption2.weight(.medium))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(.cyan)
-            .accessibilityLabel("New chat")
-            .accessibilityHint("Clears answers and returns to the microphone. You can also swipe left.")
-            if let last = messages.last {
-                Button {
-                    if speech.isSpeaking { speech.stop() }
-                    else { speech.speak(AnswerFormatting.plainText(last.content)) }
-                } label: {
-                    Image(systemName: speech.isSpeaking ? "stop.fill" : "speaker.wave.2.fill")
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(speech.isSpeaking ? Color.cyan : Color.secondary)
-                .accessibilityLabel(speech.isSpeaking ? "Stop reading" : "Read answer aloud")
-            }
-            Button(action: handleOrbTap) {
-                Text("Ask")
-                    .font(.caption.weight(.semibold))
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .background(Color.cyan.opacity(0.18), in: Capsule())
-                    .contentShape(Capsule())
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.cyan)
-            .accessibilityLabel("Ask a new question")
-            .accessibilityHint("Starts recording immediately")
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 16))
+            .contentShape(Rectangle())
         }
-        // Keep the row above the curved bottom edge without retaining the
-        // system's unused bottom inset. All three controls share one baseline.
-        .padding(.horizontal, 16)
+        .buttonStyle(.plain)
+        .accessibilityValue(settings.preferredModel == nil ? "Add a key in Settings" : "Key saved")
+        .accessibilityHint("Opens the model picker")
+    }
+
+    private var conversationControls: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 4) {
+                newChatButton
+                playbackButton
+                askButton
+            }
+            VStack(spacing: 4) {
+                HStack(spacing: 4) {
+                    newChatButton
+                    playbackButton
+                }
+                askButton
+            }
+        }
+        // Reserve the controls' actual height, including the compact two-row
+        // layout on narrow displays or at larger Dynamic Type sizes.
+        .padding(.horizontal, 12)
         .padding(.top, 2)
         .padding(.bottom, 8)
         .background(.ultraThinMaterial)
+    }
+
+    private var newChatButton: some View {
+        Button(action: startNewChat) {
+            Image(systemName: "square.and.pencil")
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.cyan)
+        .accessibilityLabel("New chat")
+        .accessibilityHint("Clears answers and returns to the microphone. You can also swipe left.")
+    }
+
+    @ViewBuilder private var playbackButton: some View {
+        if let last = messages.last {
+            Button {
+                if speech.isSpeaking { speech.stop() }
+                else { speech.speak(answer: last.content, voiceSlot: settings.voiceSlot, speed: settings.speechSpeed) }
+            } label: {
+                Group {
+                    if speech.isSpeaking {
+                        Text("Stop")
+                            .font(.caption.weight(.semibold))
+                            .fixedSize(horizontal: true, vertical: false)
+                            .padding(.horizontal, 10)
+                    } else {
+                        Image(systemName: "speaker.wave.2.fill")
+                    }
+                }
+                .frame(minWidth: 44, minHeight: 44)
+                .background(speech.isSpeaking ? Color.cyan : Color.clear, in: Capsule())
+                .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(speech.isSpeaking ? Color.black : Color.secondary)
+            .accessibilityLabel(speech.isSpeaking ? "Stop reading" : "Read answer aloud")
+        }
+    }
+
+    private var askButton: some View {
+        Button(action: handleOrbTap) {
+            Text("Ask")
+                .font(.caption.weight(.semibold))
+                .fixedSize(horizontal: true, vertical: false)
+                .padding(.horizontal, 8)
+                .frame(minWidth: 44, maxWidth: .infinity, minHeight: 44)
+                .background(Color.cyan.opacity(0.18), in: Capsule())
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.cyan)
+        .accessibilityLabel("Ask a new question")
+        .accessibilityHint("Starts recording immediately")
     }
 
     @ViewBuilder private var errorCard: some View {
@@ -292,7 +385,7 @@ struct ChatView: View {
                 retryAudio = nil
                 WKInterfaceDevice.current().play(.success)
                 if settings.readAloud, !showSettings, scenePhase == .active {
-                    speech.speak(AnswerFormatting.plainText(response))
+                    speech.speak(answer: response, voiceSlot: settings.voiceSlot, speed: settings.speechSpeed)
                 }
             } catch {
                 guard requestID == id, !Task.isCancelled else { return }
@@ -521,7 +614,7 @@ private final class VoiceRecorder: NSObject, ObservableObject, AVAudioRecorderDe
 // releasing a newer recording/playback session. The main actor only owns state;
 // synchronous audio-service work runs on a dedicated queue.
 @MainActor
-private enum AudioSessionController {
+enum AudioSessionController {
     private static let queue = DispatchQueue(label: "ClaudeWatch.audio-session", qos: .userInitiated)
     private static var owner: UUID?
     private static var isActive = false
@@ -591,14 +684,19 @@ private enum AudioSessionController {
 }
 
 @MainActor
-private final class SpeechOutput: ObservableObject {
+final class SpeechOutput: ObservableObject {
     @Published private(set) var isSpeaking = false
     private let playback = SpeechPlayback()
     private var activationID: UUID?
 
-    func speak(_ text: String) {
+    /// Reads a raw (markdown) answer in the chosen voice. Code blocks are skipped, symbols cleaned up.
+    func speak(answer: String, voiceSlot: String, speed: SpeechSpeed) {
+        speak(sentences: SpeechText.sentences(fromAnswer: answer), voiceSlot: voiceSlot, speed: speed)
+    }
+
+    func speak(sentences: [String], voiceSlot: String, speed: SpeechSpeed) {
         stop()
-        guard !text.isEmpty else { return }
+        guard !sentences.isEmpty else { return }
         let id = UUID()
         activationID = id
         // Stop is available while activation or voice preparation is pending too.
@@ -606,7 +704,7 @@ private final class SpeechOutput: ObservableObject {
         AudioSessionController.activate(id: id, category: .playback) { [weak self] activated in
             guard let self, self.activationID == id else { return }
             guard activated else { self.stop(); return }
-            self.playback.speak(text, id: id) { [weak self] finishedID in
+            self.playback.speak(sentences, voiceSlot: voiceSlot, rate: speed.rate, id: id) { [weak self] finishedID in
                 Task { @MainActor in
                     guard let self, self.activationID == finishedID else { return }
                     self.activationID = nil
@@ -629,33 +727,41 @@ private final class SpeechOutput: ObservableObject {
 
 // All synthesizer access, including first-use voice loading and its implicit
 // audio-session calls, is confined to this queue rather than the UI thread.
-private final class SpeechPlayback: NSObject, AVSpeechSynthesizerDelegate, @unchecked Sendable {
+final class SpeechPlayback: NSObject, AVSpeechSynthesizerDelegate, @unchecked Sendable {
     private let queue = DispatchQueue(label: "ClaudeWatch.speech", qos: .userInitiated)
     private var synthesizer: AVSpeechSynthesizer?
-    private var utterance: AVSpeechUtterance?
+    private var pending: [AVSpeechUtterance] = []
     private var completion: (@Sendable (UUID) -> Void)?
     private var playbackID: UUID?
 
-    func speak(_ text: String, id: UUID, completion: @escaping @Sendable (UUID) -> Void) {
+    /// One utterance per sentence: speech starts sooner and Stop cuts in at the next word.
+    /// Voice lookup happens here, on the playback queue, never on the UI thread.
+    func speak(_ sentences: [String], voiceSlot: String, rate: Float, id: UUID, completion: @escaping @Sendable (UUID) -> Void) {
         queue.async {
             if self.synthesizer == nil {
                 self.synthesizer = AVSpeechSynthesizer()
                 self.synthesizer?.delegate = self
             }
-            let utterance = AVSpeechUtterance(string: text)
-            utterance.voice = AVSpeechSynthesisVoice(language: Locale.current.identifier)
-            utterance.rate = 0.48
-            self.utterance = utterance
+            let voice = VoiceCatalog.voice(forSlot: voiceSlot)
+            let utterances = sentences.map { sentence -> AVSpeechUtterance in
+                let utterance = AVSpeechUtterance(string: sentence)
+                utterance.voice = voice
+                utterance.rate = rate
+                utterance.postUtteranceDelay = 0.05
+                return utterance
+            }
+            guard !utterances.isEmpty else { completion(id); return }
+            self.pending = utterances
             self.playbackID = id
             self.completion = completion
-            self.synthesizer?.speak(utterance)
+            utterances.forEach { self.synthesizer?.speak($0) }
         }
     }
 
     func stop() async {
         await withCheckedContinuation { continuation in
             queue.async {
-                self.utterance = nil
+                self.pending = []
                 self.playbackID = nil
                 self.completion = nil
                 // Also clears queued/paused speech; isSpeaking is not a reliable
@@ -668,9 +774,11 @@ private final class SpeechPlayback: NSObject, AVSpeechSynthesizerDelegate, @unch
 
     private func finished(_ utterance: AVSpeechUtterance) {
         queue.async {
-            guard self.utterance === utterance, let id = self.playbackID else { return }
+            // Ignore callbacks from a replaced/stopped playback, and only complete after the last sentence.
+            guard let index = self.pending.firstIndex(where: { $0 === utterance }), let id = self.playbackID else { return }
+            self.pending.remove(at: index)
+            guard self.pending.isEmpty else { return }
             let completion = self.completion
-            self.utterance = nil
             self.playbackID = nil
             self.completion = nil
             completion?(id)
@@ -689,7 +797,7 @@ private final class SpeechPlayback: NSObject, AVSpeechSynthesizerDelegate, @unch
 struct ModelPickerView: View {
     @EnvironmentObject private var settings: AppSettings
     @Environment(\.dismiss) private var dismiss
-    private var models: [AIModel] { AIModel.allCases.filter { !$0.isFreeCloudModel && settings.hasAPIKey(for: $0.provider) } }
+    private var models: [AIModel] { settings.availableModels.filter { !$0.isFreeCloudModel && settings.hasAPIKey(for: $0.provider) } }
     var body: some View {
         NavigationStack {
             List {

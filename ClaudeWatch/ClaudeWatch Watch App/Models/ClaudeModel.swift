@@ -60,7 +60,7 @@ enum ConnectionMode: String, CaseIterable, Identifiable {
     }
 }
 
-enum AIProvider: String, CaseIterable, Identifiable {
+enum AIProvider: String, CaseIterable, Identifiable, Codable {
     case openRouter
     case groq
     case anthropic
@@ -96,7 +96,7 @@ enum AIProvider: String, CaseIterable, Identifiable {
     }
 }
 
-struct AIModel: RawRepresentable, Identifiable, Hashable {
+struct AIModel: RawRepresentable, Identifiable, Hashable, Codable {
     let rawValue: String
     let provider: AIProvider
     let displayName: String
@@ -108,8 +108,48 @@ struct AIModel: RawRepresentable, Identifiable, Hashable {
     var shortName: String { displayName.replacingOccurrences(of: " ", with: "") }
 
     init?(rawValue: String) {
-        guard let model = Self.allCases.first(where: { $0.storageKey == rawValue }) else { return nil }
-        self = model
+        if let model = Self.allCases.first(where: { $0.storageKey == rawValue }) {
+            self = model
+            return
+        }
+        let parts = rawValue.split(separator: "|", maxSplits: 1).map(String.init)
+        guard parts.count == 2, let provider = AIProvider(rawValue: parts[0]),
+              Self.isValidModelID(parts[1]) else { return nil }
+        self.init(rawValue: parts[1], provider: provider, displayName: parts[1],
+                  family: provider.displayName, icon: "sparkles", isFreeCloudModel: false)
+    }
+
+    static func isValidModelID(_ value: String) -> Bool {
+        !value.isEmpty && value.count <= 200 && value.unicodeScalars.allSatisfy {
+            CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._/:").contains($0)
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case rawValue, provider, displayName, family, icon, isFreeCloudModel
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        let id = try values.decode(String.self, forKey: .rawValue)
+        guard Self.isValidModelID(id) else {
+            throw DecodingError.dataCorruptedError(forKey: .rawValue, in: values, debugDescription: "Invalid model ID")
+        }
+        self.init(rawValue: id, provider: try values.decode(AIProvider.self, forKey: .provider),
+                  displayName: try values.decode(String.self, forKey: .displayName),
+                  family: try values.decode(String.self, forKey: .family),
+                  icon: try values.decode(String.self, forKey: .icon),
+                  isFreeCloudModel: try values.decode(Bool.self, forKey: .isFreeCloudModel))
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(rawValue, forKey: .rawValue)
+        try values.encode(provider, forKey: .provider)
+        try values.encode(displayName, forKey: .displayName)
+        try values.encode(family, forKey: .family)
+        try values.encode(icon, forKey: .icon)
+        try values.encode(isFreeCloudModel, forKey: .isFreeCloudModel)
     }
 
     init(rawValue: String, provider: AIProvider, displayName: String, family: String, icon: String, isFreeCloudModel: Bool) {
