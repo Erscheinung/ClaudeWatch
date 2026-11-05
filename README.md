@@ -2,21 +2,6 @@
 
 A standalone, voice-first watchOS assistant. Originally built for Claude, the app now defaults to Gemini Flash-Lite and also supports other providers with your own keys.
 
-## Temporary UI references
-
-These temporary before/after mockups illustrate the design direction; they are **not screenshots of the installed app**. The current build uses a compact model chip, an explicit Stop label, and grouped narration settings. Some labels and layouts differ from these references; follow the setup instructions below for supported features.
-
-| Home and model selection | Answer and playback controls |
-| --- | --- |
-| ![Temporary home-screen before/after mockup](docs/screenshots/home-proposal.png) | ![Temporary answer-screen before/after mockup](docs/screenshots/answer-proposal.png) |
-
-<details>
-<summary>Settings reference</summary>
-
-![Temporary settings and voice-picker mockup](docs/screenshots/settings-proposal.png)
-
-</details>
-
 ## Watch experience
 
 - **See your model.** The home screen shows a compact chip for the selected model. Tap it to change models. VoiceOver reports whether a key is saved; this does not imply a live connection or remaining quota.
