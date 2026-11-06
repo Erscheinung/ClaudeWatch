@@ -115,6 +115,16 @@ On first launch:
 
 Get your API key at: https://console.anthropic.com/
 
+### 4. Optional Todoist day briefing
+
+The opt-in Gemini day briefing answers “What's due today, what's overdue, and what looks overloaded?” with a bounded, read-only Todoist v1 read. It is off by default and only runs when Gemini is the active provider.
+
+In Settings → Todoist day briefing, connect a separately provisioned Todoist credential, then enable the feature. Prefer Todoist OAuth with the narrowest data:read scope when available. This Watch stores the credential in its own Keychain account and provides explicit replace/account-switch and remove controls. Never paste or reuse a token from TodoistToday.
+
+Todoist's data:read scope is read-only, but a broad/personal token can still authorize writes at the Todoist server. ClaudeWatch only sends GET /api/v1/tasks/filter requests and has no task mutation path; client-side behavior does not narrow a token's server permissions. Task titles are treated as untrusted data. The briefing reports the live fetch timestamp and whether the read is complete, partial, unavailable, or permission-denied, and keeps due dates separate from date-only deadlines.
+
+Missing task duration is shown as unknown, never as zero. The Watch has no calendar or availability input in this slice, so the briefing describes counts, priorities, deadlines, timed dues, known minutes, and missing estimates; it does not claim that work fits or can be scheduled. The Gemini tool history is limited to one request, three rounds, six read calls, 25 tasks per page, and a bounded result size. Generic independent Q&A, provider keys, current recording/send behavior, cancellation, and Read aloud remain unchanged.
+
 ## Usage
 
 1. **Open the app** on your Apple Watch

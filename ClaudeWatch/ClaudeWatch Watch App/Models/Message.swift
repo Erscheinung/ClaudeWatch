@@ -1,17 +1,17 @@
 import Foundation
 
-struct Message: Identifiable, Codable {
+struct Message: Identifiable, Codable, Equatable {
     let id: UUID
     let role: Role
-    let content: String
+    var content: String
     let timestamp: Date
     let model: String?
-    
+
     enum Role: String, Codable {
         case user
         case assistant
     }
-    
+
     init(id: UUID = UUID(), role: Role, content: String, model: String? = nil) {
         self.id = id
         self.role = role
@@ -21,41 +21,45 @@ struct Message: Identifiable, Codable {
     }
 }
 
-// API Request/Response structures
-struct ClaudeRequest: Codable {
+// MARK: - API request / error payloads
+
+struct ClaudeRequest: Encodable {
     let model: String
     let max_tokens: Int
+    let stream: Bool
     let messages: [APIMessage]
     let system: String?
-    
-    struct APIMessage: Codable {
+    let output_config: OutputConfig?
+
+    struct APIMessage: Encodable {
         let role: String
         let content: String
     }
-}
 
-struct ClaudeResponse: Codable {
-    let id: String
-    let content: [ContentBlock]
-    let model: String
-    let stop_reason: String?
-    
-    struct ContentBlock: Codable {
-        let type: String
-        let text: String?
-    }
-    
-    var textContent: String {
-        content.compactMap { $0.text }.joined()
+    struct OutputConfig: Encodable {
+        let effort: String
     }
 }
 
-struct ClaudeError: Codable {
+struct ClaudeError: Decodable {
     let type: String
     let error: ErrorDetail
-    
-    struct ErrorDetail: Codable {
+
+    struct ErrorDetail: Decodable {
         let type: String
         let message: String
+    }
+}
+
+/// One server-sent event from a streaming response (only the fields we use).
+struct ClaudeStreamEvent: Decodable {
+    let type: String
+    let delta: Delta?
+    let error: ClaudeError.ErrorDetail?
+
+    struct Delta: Decodable {
+        let type: String?
+        let text: String?
+        let stop_reason: String?
     }
 }

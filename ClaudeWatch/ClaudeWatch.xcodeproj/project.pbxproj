@@ -12,11 +12,21 @@
 		AAA00003 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00003; };
 		AAA00004 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00004; };
 		AAA00005 /* MessageBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00005; };
-		AAA00006 /* ClaudeModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00006; };
 		AAA00007 /* Message.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00007; };
-		AAA00008 /* ClaudeAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00008; };
-		AAA00009 /* SpeechRecognitionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00009; };
+		AAA00008 /* ChatAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00008; };
 		AAA00010 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AAB00010; };
+		AAA00011 /* TextProcessing.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00012; };
+		AAA00012 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00013; };
+		AAA00013 /* VoiceCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00014; };
+		AAA00014 /* SpeechSynthesisService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00015; };
+		AAA00015 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00016; };
+		AAA00016 /* ConversationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00017; };
+		AAA00030 /* Provider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00030; };
+		AAA00031 /* ModelCatalogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00031; };
+		AAA00032 /* ProviderFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00032; };
+		AAA00033 /* TodoistModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00033; };
+		AAA00034 /* TodoistReadService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00034; };
+		AAA00035 /* GeminiDayBriefingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB00035; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -25,13 +35,23 @@
 		AAB00003 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		AAB00004 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		AAB00005 /* MessageBubble.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageBubble.swift; sourceTree = "<group>"; };
-		AAB00006 /* ClaudeModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeModel.swift; sourceTree = "<group>"; };
 		AAB00007 /* Message.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Message.swift; sourceTree = "<group>"; };
-		AAB00008 /* ClaudeAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeAPIService.swift; sourceTree = "<group>"; };
-		AAB00009 /* SpeechRecognitionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechRecognitionService.swift; sourceTree = "<group>"; };
+		AAB00008 /* ChatAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatAPIService.swift; sourceTree = "<group>"; };
 		AAB00010 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AAB00011 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AAC00001 /* ClaudeWatch Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "ClaudeWatch Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		AAB00012 /* TextProcessing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextProcessing.swift; sourceTree = "<group>"; };
+		AAB00013 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		AAB00014 /* VoiceCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCatalog.swift; sourceTree = "<group>"; };
+		AAB00015 /* SpeechSynthesisService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechSynthesisService.swift; sourceTree = "<group>"; };
+		AAB00016 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
+		AAB00017 /* ConversationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationStore.swift; sourceTree = "<group>"; };
+		AAB00030 /* Provider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Provider.swift; sourceTree = "<group>"; };
+		AAB00031 /* ModelCatalogService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelCatalogService.swift; sourceTree = "<group>"; };
+		AAB00032 /* ProviderFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderFlow.swift; sourceTree = "<group>"; };
+		AAB00033 /* TodoistModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoistModels.swift; sourceTree = "<group>"; };
+		AAB00034 /* TodoistReadService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoistReadService.swift; sourceTree = "<group>"; };
+		AAB00035 /* GeminiDayBriefingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiDayBriefingService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -81,6 +101,7 @@
 				AAB00003 /* ChatView.swift */,
 				AAB00004 /* SettingsView.swift */,
 				AAB00005 /* MessageBubble.swift */,
+				AAB00032 /* ProviderFlow.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -88,8 +109,12 @@
 		AAE00005 /* Models */ = {
 			isa = PBXGroup;
 			children = (
-				AAB00006 /* ClaudeModel.swift */,
 				AAB00007 /* Message.swift */,
+				AAB00030 /* Provider.swift */,
+				AAB00012 /* TextProcessing.swift */,
+				AAB00013 /* AppSettings.swift */,
+				AAB00014 /* VoiceCatalog.swift */,
+				AAB00033 /* TodoistModels.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -97,8 +122,13 @@
 		AAE00006 /* Services */ = {
 			isa = PBXGroup;
 			children = (
-				AAB00008 /* ClaudeAPIService.swift */,
-				AAB00009 /* SpeechRecognitionService.swift */,
+				AAB00008 /* ChatAPIService.swift */,
+				AAB00031 /* ModelCatalogService.swift */,
+				AAB00015 /* SpeechSynthesisService.swift */,
+				AAB00016 /* KeychainStore.swift */,
+				AAB00017 /* ConversationStore.swift */,
+				AAB00034 /* TodoistReadService.swift */,
+				AAB00035 /* GeminiDayBriefingService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -177,10 +207,20 @@
 				AAA00003 /* ChatView.swift in Sources */,
 				AAA00004 /* SettingsView.swift in Sources */,
 				AAA00005 /* MessageBubble.swift in Sources */,
-				AAA00006 /* ClaudeModel.swift in Sources */,
 				AAA00007 /* Message.swift in Sources */,
-				AAA00008 /* ClaudeAPIService.swift in Sources */,
-				AAA00009 /* SpeechRecognitionService.swift in Sources */,
+				AAA00008 /* ChatAPIService.swift in Sources */,
+				AAA00030 /* Provider.swift in Sources */,
+				AAA00031 /* ModelCatalogService.swift in Sources */,
+				AAA00032 /* ProviderFlow.swift in Sources */,
+				AAA00011 /* TextProcessing.swift in Sources */,
+				AAA00012 /* AppSettings.swift in Sources */,
+				AAA00013 /* VoiceCatalog.swift in Sources */,
+				AAA00014 /* SpeechSynthesisService.swift in Sources */,
+				AAA00015 /* KeychainStore.swift in Sources */,
+				AAA00016 /* ConversationStore.swift in Sources */,
+				AAA00033 /* TodoistModels.swift in Sources */,
+				AAA00034 /* TodoistReadService.swift in Sources */,
+				AAA00035 /* GeminiDayBriefingService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -315,8 +355,6 @@
 				INFOPLIST_FILE = "ClaudeWatch Watch App/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Claude Watch";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "";
-				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -345,8 +383,6 @@
 				INFOPLIST_FILE = "ClaudeWatch Watch App/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Claude Watch";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "";
-				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
