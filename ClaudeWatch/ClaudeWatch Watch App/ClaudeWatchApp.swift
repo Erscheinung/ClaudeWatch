@@ -56,6 +56,12 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(speechSpeed.rawValue, forKey: Keys.speechSpeed) }
     }
 
+    /// Gemini-only Todoist day briefing. Opt-in: existing installs and fresh installs start off.
+    @Published var todoistBriefingEnabled: Bool {
+        didSet { UserDefaults.standard.set(todoistBriefingEnabled, forKey: Keys.todoistBriefingEnabled) }
+    }
+    @Published private(set) var hasTodoistToken: Bool
+
     private enum Keys {
         static let selectedModel = "selectedModel"
         static let connectionMode = "connectionMode"
@@ -67,13 +73,21 @@ final class AppSettings: ObservableObject {
         static let voiceSlot = "voiceSlot"
         static let speechSpeed = "speechSpeed"
         static let liveGeminiModels = "liveGeminiModels"
+        static let todoistBriefingEnabled = "todoistBriefingEnabled"
     }
+
+    /// Keychain account for the separately provisioned Todoist read credential. It is never an
+    /// AIProvider account, so replacing or removing it cannot touch provider keys (and vice versa).
+    static let todoistReadTokenAccount = "todoist-read-token"
 
     init() {
         replyLength = ReplyLength(rawValue: UserDefaults.standard.string(forKey: Keys.replyLength) ?? "") ?? .balanced
         readAloud = UserDefaults.standard.object(forKey: Keys.readAloud) as? Bool ?? true
         voiceSlot = UserDefaults.standard.string(forKey: Keys.voiceSlot) ?? VoiceCatalog.defaultSlot
         speechSpeed = SpeechSpeed(rawValue: UserDefaults.standard.string(forKey: Keys.speechSpeed) ?? "") ?? .normal
+        let savedTodoistToken = KeychainStore.read(account: Self.todoistReadTokenAccount)?.isEmpty == false
+        hasTodoistToken = savedTodoistToken
+        todoistBriefingEnabled = savedTodoistToken && (UserDefaults.standard.object(forKey: Keys.todoistBriefingEnabled) as? Bool ?? false)
         let modelKey = UserDefaults.standard.string(forKey: Keys.selectedModel)
         selectedModel = modelKey.flatMap(AIModel.init(rawValue:)) ?? AIModel.geminiFlashLite
         let mode = UserDefaults.standard.string(forKey: Keys.connectionMode)
@@ -126,6 +140,38 @@ final class AppSettings: ObservableObject {
 
     func hasAPIKey(for provider: AIProvider) -> Bool {
         !apiKey(for: provider).isEmpty
+    }
+
+    // MARK: Todoist read-only account
+
+    var todoistReadToken: String {
+        KeychainStore.read(account: Self.todoistReadTokenAccount) ?? ""
+    }
+
+    /// Returns false when Keychain did not store the token, so the UI never claims a saved account.
+    @discardableResult
+    func setTodoistReadToken(_ token: String) -> Bool {
+        let trimmed = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            removeTodoistReadToken()
+            return true
+        }
+        let saved = KeychainStore.save(trimmed, account: Self.todoistReadTokenAccount)
+        hasTodoistToken = saved || hasTodoistToken
+        return saved
+    }
+
+    /// Removing the Todoist account disables the briefing; provider keys are untouched.
+    func removeTodoistReadToken() {
+        KeychainStore.delete(account: Self.todoistReadTokenAccount)
+        hasTodoistToken = false
+        todoistBriefingEnabled = false
+    }
+
+    /// The briefing runs only for an enabled feature, a saved Todoist token and a Gemini model with a key.
+    var canUseDayBriefing: Bool {
+        guard todoistBriefingEnabled, hasTodoistToken, let model = preferredModel else { return false }
+        return model.provider == .google && hasAPIKey(for: .google)
     }
 
     var isReady: Bool {

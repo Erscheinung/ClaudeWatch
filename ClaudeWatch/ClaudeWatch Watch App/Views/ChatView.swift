@@ -20,6 +20,7 @@ struct ChatView: View {
     @State private var didApplyUIDemo = false
     #endif
     private let apiService = ChatAPIService()
+    private let briefingService = GeminiDayBriefingService()
 
     private var state: OrbState {
         if recorder.isPreparing { return .preparing }
@@ -367,13 +368,24 @@ struct ChatView: View {
         let replyLength = settings.replyLength
         let transcriptionKey = settings.apiKey(for: .google)
         let gatewayURL = settings.gatewayURL
+        // Day briefing is opt-in and Gemini-only. When it is off, the request path below is unchanged.
+        let briefingAvailable = settings.canUseDayBriefing
+        let todoistToken = briefingAvailable ? settings.todoistReadToken : ""
+        let timeZone = TimeZone.current
         requestTask = Task { @MainActor in
             do {
                 let response: String
-                if inputMode == .text {
-                    let query = try await apiService.transcribeAudio(audioData: audioData, model: .geminiFlashLite, apiKey: transcriptionKey)
+                var query: String?
+                if inputMode == .text || briefingAvailable {
+                    let transcript = try await apiService.transcribeAudio(audioData: audioData, model: .geminiFlashLite, apiKey: transcriptionKey)
                     try Task.checkCancellation()
                     guard requestID == id else { return }
+                    query = transcript
+                }
+                if briefingAvailable, let query, DayBriefingIntent.matches(query) {
+                    pendingQuery = query
+                    response = try await briefingService.run(question: query, modelID: model.rawValue, apiKey: key, todoistToken: todoistToken, timeZone: timeZone)
+                } else if inputMode == .text, let query {
                     pendingQuery = query
                     response = try await apiService.sendMessage(messages: [Message(role: .user, content: query)], model: model, connectionMode: .bringYourOwnKey, apiKey: key, gatewayURL: gatewayURL, replyLength: replyLength)
                 } else {

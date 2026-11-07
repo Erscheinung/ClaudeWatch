@@ -5,6 +5,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var editingProvider: AIProvider?
     @State private var showGatewayEditor = false
+    @State private var showTodoistEditor = false
 
     var body: some View {
         NavigationStack {
@@ -64,6 +65,20 @@ struct SettingsView: View {
                         }
                     }
                 }
+                Section("Todoist day briefing") {
+                    Toggle("Day briefing", isOn: $settings.todoistBriefingEnabled)
+                        .disabled(!settings.hasTodoistToken)
+                    Button { showTodoistEditor = true } label: {
+                        HStack { Image(systemName: "checklist").foregroundStyle(settings.hasTodoistToken ? Color.green : Color.orange); Text(settings.hasTodoistToken ? "Replace Todoist account" : "Connect Todoist"); Spacer(); Image(systemName: "chevron.right").font(.caption2).foregroundStyle(Color.secondary) }
+                    }
+                    if settings.hasTodoistToken {
+                        Button("Remove Todoist account", role: .destructive) { settings.removeTodoistReadToken() }.font(.caption)
+                    }
+                    Text(settings.hasTodoistToken
+                         ? "Ask “What's due today?” with a Gemini model. Reads only; nothing in Todoist changes."
+                         : "Off by default. Add a separate Todoist read token to ask what's due today. Requires a Gemini model.")
+                        .font(.caption2).foregroundStyle(Color.secondary)
+                }
                 Section("Help") {
                     NavigationLink { SetupHelpView() } label: { Label("Setup guide", systemImage: "book.closed.fill") }
                 }
@@ -72,6 +87,7 @@ struct SettingsView: View {
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
             .sheet(item: $editingProvider) { APIKeyEditorView(provider: $0) }
             .sheet(isPresented: $showGatewayEditor) { GatewayEditorView() }
+            .sheet(isPresented: $showTodoistEditor) { TodoistTokenEditorView() }
         }
     }
 }
@@ -146,6 +162,7 @@ private struct SetupHelpView: View {
                 help("3", "Talk", "Tap the mic once, speak, then tap the arrow to send. Cancel discards the recording. Questions send automatically at 60 seconds.")
                 help("4", "Reply length", "Settings → Replies → Output length offers Light, Balanced, and Heavy. Balanced is the default; the model stays the same.")
                 help("5", "Listen", "Read the answer and tap Ask for another independent question. Tap the new-chat icon or swipe left to clear answers and return to the mic. Turn off Settings → Read aloud → Read answers for text-only replies. Tap Stop to end narration. Tap the model chip on the home screen to switch models. Swipe right or tap the faint left-edge cue for Settings.")
+                help("6", "Day briefing (optional)", "Settings → Todoist day briefing → Connect Todoist, then turn on Day briefing. With a Gemini model, ask “What's due today?”. It reads today's and overdue tasks only and never changes them.")
             }.padding()
         }.navigationTitle("Setup")
     }
@@ -184,6 +201,35 @@ private struct GatewayEditorView: View {
                 TextField("https://example.com/v1/chat/completions", text: $url).textInputAutocapitalization(.never)
                 Button("Save") { settings.gatewayURL = url.trimmingCharacters(in: .whitespacesAndNewlines); dismiss() }.buttonStyle(.borderedProminent).tint(Color.cyan)
             }.padding().onAppear { url = settings.gatewayURL }.navigationTitle("Fallback").toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+        }
+    }
+}
+
+/// Separate from provider keys: stored under its own Keychain account and never sent to Gemini.
+private struct TodoistTokenEditorView: View {
+    @EnvironmentObject private var settings: AppSettings
+    @Environment(\.dismiss) private var dismiss
+    @State private var token = ""
+    @State private var saveFailed = false
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 12) {
+                    Image(systemName: "checklist").font(.title2).foregroundStyle(Color.cyan)
+                    Text("Todoist read token").font(.headline)
+                    Text("Use a token made for ClaudeWatch, with Todoist's data:read scope if you can. ClaudeWatch only reads, but a full personal token can still allow changes on Todoist's side.")
+                        .font(.caption2).foregroundStyle(Color.secondary).multilineTextAlignment(.center)
+                    SecureField("Todoist token", text: $token).textInputAutocapitalization(.never)
+                    Button("Save") {
+                        if settings.setTodoistReadToken(token) { dismiss() } else { saveFailed = true }
+                    }
+                    .buttonStyle(.borderedProminent).tint(Color.cyan)
+                    .disabled(token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    if saveFailed { Text("Keychain could not save the token. Try again.").font(.caption2).foregroundStyle(Color.orange) }
+                }.padding()
+            }
+            .navigationTitle("Todoist")
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
         }
     }
 }

@@ -29,6 +29,13 @@
 		E1CF649C103D81479D278C08 /* ClaudeWatch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = AAC00001 /* ClaudeWatch Watch App.app */; };
 		E921460DA978DC25454529BD /* CompanionConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD2F061FE6260E1108C19276 /* CompanionConnection.swift */; };
 		E953314E73159AF218357F77 /* GeminiModelCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D1582C71DC3D17A68132DD3 /* GeminiModelCatalog.swift */; };
+		CCA00001 /* TodoistModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCB00001 /* TodoistModels.swift */; };
+		CCA00002 /* TodoistReadService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCB00002 /* TodoistReadService.swift */; };
+		CCA00003 /* GeminiDayBriefingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCB00003 /* GeminiDayBriefingService.swift */; };
+		CCA00011 /* TodoistModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCB00001 /* TodoistModels.swift */; };
+		CCA00012 /* TodoistReadService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCB00002 /* TodoistReadService.swift */; };
+		CCA00013 /* GeminiDayBriefingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCB00003 /* GeminiDayBriefingService.swift */; };
+		CCA00014 /* DayBriefingReadHarnessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCB00004 /* DayBriefingReadHarnessTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -96,6 +103,11 @@
 		BBB00003 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		BBC00001 /* ClaudeWatchComplication.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ClaudeWatchComplication.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		BD2F061FE6260E1108C19276 /* CompanionConnection.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CompanionConnection.swift; sourceTree = "<group>"; };
+		CCB00001 /* TodoistModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoistModels.swift; sourceTree = "<group>"; };
+		CCB00002 /* TodoistReadService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoistReadService.swift; sourceTree = "<group>"; };
+		CCB00003 /* GeminiDayBriefingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiDayBriefingService.swift; sourceTree = "<group>"; };
+		CCB00004 /* DayBriefingReadHarnessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayBriefingReadHarnessTests.swift; sourceTree = "<group>"; };
+		CCC00001 /* ClaudeWatch Read Harness Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "ClaudeWatch Read Harness Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -119,6 +131,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				BBA00002 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CCD00001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -159,6 +178,7 @@
 				BBB00003 /* WidgetKit.framework */,
 				EE4F5248FA9793DE06ECF6A1 /* Shared */,
 				8144175DAB52D0FB61515090 /* ClaudeWatch iPhone App */,
+				CCE00001 /* ClaudeWatch Read Harness Tests */,
 				71906FEE3586313A129F41C6 /* Frameworks */,
 			);
 			sourceTree = "<group>";
@@ -183,6 +203,7 @@
 				AAC00001 /* ClaudeWatch Watch App.app */,
 				BBC00001 /* ClaudeWatchComplication.appex */,
 				7087A1695138FE0821327694 /* ClaudeWatch iPhone App.app */,
+				CCC00001 /* ClaudeWatch Read Harness Tests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -204,6 +225,7 @@
 				AAB00007 /* Message.swift */,
 				AAB00020 /* VoiceCatalog.swift */,
 				AAB00021 /* SpeechText.swift */,
+				CCB00001 /* TodoistModels.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -212,6 +234,8 @@
 			isa = PBXGroup;
 			children = (
 				AAB00008 /* ClaudeAPIService.swift */,
+				CCB00002 /* TodoistReadService.swift */,
+				CCB00003 /* GeminiDayBriefingService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -233,6 +257,14 @@
 			);
 			name = Shared;
 			path = Shared;
+			sourceTree = "<group>";
+		};
+		CCE00001 /* ClaudeWatch Read Harness Tests */ = {
+			isa = PBXGroup;
+			children = (
+				CCB00004 /* DayBriefingReadHarnessTests.swift */,
+			);
+			path = "ClaudeWatch Read Harness Tests";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -292,6 +324,22 @@
 			productReference = BBC00001 /* ClaudeWatchComplication.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		CCF00001 /* ClaudeWatch Read Harness Tests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CCG00001 /* Build configuration list for PBXNativeTarget "ClaudeWatch Read Harness Tests" */;
+			buildPhases = (
+				CCD00002 /* Sources */,
+				CCD00001 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "ClaudeWatch Read Harness Tests";
+			productName = "ClaudeWatch Read Harness Tests";
+			productReference = CCC00001 /* ClaudeWatch Read Harness Tests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -306,6 +354,9 @@
 						CreatedOnToolsVersion = 15.0;
 					};
 					AAF00002 = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					CCF00001 = {
 						CreatedOnToolsVersion = 27.0;
 					};
 				};
@@ -326,6 +377,7 @@
 				AAF00001 /* ClaudeWatch Watch App */,
 				AAF00002 /* ClaudeWatchComplication */,
 				48603A43B4CD190A4E31265D /* ClaudeWatch iPhone App */,
+				CCF00001 /* ClaudeWatch Read Harness Tests */,
 			);
 		};
 /* End PBXProject section */
@@ -365,6 +417,9 @@
 				AAA00008 /* ClaudeAPIService.swift in Sources */,
 				E953314E73159AF218357F77 /* GeminiModelCatalog.swift in Sources */,
 				E921460DA978DC25454529BD /* CompanionConnection.swift in Sources */,
+				CCA00001 /* TodoistModels.swift in Sources */,
+				CCA00002 /* TodoistReadService.swift in Sources */,
+				CCA00003 /* GeminiDayBriefingService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -384,6 +439,17 @@
 				0F6D919EA11FDE1D9920E5EA /* GeminiModelCatalog.swift in Sources */,
 				13C27BC796BCF4E48C5FA554 /* CompanionConnection.swift in Sources */,
 				57B8EB276EC5D01D4C030959 /* ClaudeModel.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CCD00002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CCA00014 /* DayBriefingReadHarnessTests.swift in Sources */,
+				CCA00011 /* TodoistModels.swift in Sources */,
+				CCA00012 /* TodoistReadService.swift in Sources */,
+				CCA00013 /* GeminiDayBriefingService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -703,6 +769,40 @@
 			};
 			name = Debug;
 		};
+		CCG00002 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.Erscheinung.ClaudeWatch.ReadHarnessTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.0;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		CCG00003 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.Erscheinung.ClaudeWatch.ReadHarnessTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.0;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -738,6 +838,15 @@
 			buildConfigurations = (
 				AAG00007 /* Debug */,
 				AAG00008 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CCG00001 /* Build configuration list for PBXNativeTarget "ClaudeWatch Read Harness Tests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CCG00002 /* Debug */,
+				CCG00003 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
