@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 /// Direct Todoist v1 GET-only adapter. There is intentionally no write-capable API in this type.
@@ -6,6 +7,9 @@ struct TodoistReadService: Sendable {
     private let session: URLSession
     private let maxTitleLength = 240
     private static let cursorMarker = "ClaudeWatchTodoistRead"
+    /// Per-instance HMAC key, so only cursors this adapter issued can be continued.
+    /// A model-forged cursor (even one with the right marker) is rejected before any request.
+    private let cursorKey: Data
 
     private enum Phase: String, Codable {
         case today
@@ -23,10 +27,26 @@ struct TodoistReadService: Sendable {
     private struct Page: Decodable {
         let results: [RemoteTask]
         let nextCursor: String?
+        /// Malformed records (missing/wrong-typed fields, out-of-range priority). They are dropped and
+        /// reported so coverage is partial; their fields are never guessed.
+        let skipped: Int
 
         enum CodingKeys: String, CodingKey {
             case results
             case nextCursor = "next_cursor"
+        }
+
+        private struct LossyTask: Decodable {
+            let task: RemoteTask?
+            init(from decoder: Decoder) throws { task = try? RemoteTask(from: decoder) }
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            let lossy = try container.decode([LossyTask].self, forKey: .results)
+            results = lossy.compactMap(\.task)
+            skipped = lossy.count - results.count
+            nextCursor = try container.decodeIfPresent(String.self, forKey: .nextCursor)
         }
     }
 
@@ -79,6 +99,9 @@ struct TodoistReadService: Sendable {
             content = try container.decode(String.self, forKey: .content)
             projectID = try container.decodeIfPresent(String.self, forKey: .projectID)
             priority = try container.decodeIfPresent(Int.self, forKey: .priority)
+            if let priority, !(1...4).contains(priority) {
+                throw DecodingError.dataCorruptedError(forKey: .priority, in: container, debugDescription: "priority out of range")
+            }
             due = try container.decodeIfPresent(RemoteDue.self, forKey: .due)
             deadline = try container.decodeIfPresent(RemoteDeadline.self, forKey: .deadline)
             // Prefer the v1 object shape; accept the flat amount + `duration_unit` form as a fallback.
@@ -93,7 +116,12 @@ struct TodoistReadService: Sendable {
         }
 
         func normalized(maxTitleLength: Int, bucket: TodoistTaskBucket) -> TodoistReadTask {
-            let title = String(content.prefix(maxTitleLength))
+            // Bound by Unicode scalars, not grapheme clusters: one "character" can carry thousands of
+            // combining marks, which would defeat both the title bound and the tool-result budget.
+            var title = String(content.prefix(maxTitleLength))
+            if title.unicodeScalars.count > maxTitleLength {
+                title = String(String.UnicodeScalarView(title.unicodeScalars.prefix(maxTitleLength)))
+            }
             let due = due.map {
                 TodoistReadTask.Due(
                     dateTime: $0.date?.contains("T") == true ? $0.date : nil,
@@ -123,6 +151,7 @@ struct TodoistReadService: Sendable {
 
     private enum ReadError: Error {
         case permissionDenied
+        case rateLimited
         case unavailable
         case invalidResponse
     }
@@ -133,6 +162,7 @@ struct TodoistReadService: Sendable {
     ) {
         self.baseURL = baseURL
         self.session = session
+        self.cursorKey = SymmetricKey(size: .bits256).withUnsafeBytes { Data($0) }
     }
 
     /// The production session keeps the same bounded transport defaults as the rest of the app.
@@ -165,15 +195,23 @@ struct TodoistReadService: Sendable {
 
         var tasks: [TodoistReadTask] = []
         var seen = Set<String>()
+        var skipped = 0
+        func finish(_ status: TodoistReadStatus, _ message: String?, complete: Bool, next: String?) -> TodoistFindTasksResult {
+            result(tasks: tasks, request: request, status: status, message: message, complete: complete,
+                   nextCursor: next, skipped: skipped, fetchedAt: fetchedAt)
+        }
+        let repeatedCursor = "Todoist repeated a page cursor, so paging stopped early."
         do {
             if state.phase == .today {
                 let page = try await fetch(query: "today", cursor: state.today, limit: limit, token: token)
                 append(page.results, bucket: .dueToday, to: &tasks, seen: &seen)
+                skipped += page.skipped
                 if let next = page.nextCursor {
+                    // A provider cursor that points back at the page just read would loop forever.
+                    if next == state.today { return finish(.partial, repeatedCursor, complete: false, next: nil) }
                     state.today = next
                     state.phase = .today
-                    return result(tasks: tasks, request: request, status: .success, message: nil,
-                                  complete: false, nextCursor: encodeCursor(state), fetchedAt: fetchedAt)
+                    return finish(.success, nil, complete: false, next: encodeCursor(state))
                 }
                 state.today = nil
                 state.phase = .overdue
@@ -181,34 +219,36 @@ struct TodoistReadService: Sendable {
 
             if request.includeOverdue {
                 if tasks.count >= limit {
-                    return result(tasks: tasks, request: request, status: .success, message: nil,
-                                  complete: false, nextCursor: encodeCursor(state), fetchedAt: fetchedAt)
+                    return finish(.success, nil, complete: false, next: encodeCursor(state))
                 }
                 let pageLimit = max(1, limit - tasks.count)
                 let page = try await fetch(query: "overdue", cursor: state.overdue, limit: pageLimit, token: token)
                 append(page.results, bucket: .overdue, to: &tasks, seen: &seen)
+                skipped += page.skipped
                 if let next = page.nextCursor {
+                    if next == state.overdue { return finish(.partial, repeatedCursor, complete: false, next: nil) }
                     state.overdue = next
                     state.phase = .overdue
-                    return result(tasks: tasks, request: request, status: .success, message: nil,
-                                  complete: false, nextCursor: encodeCursor(state), fetchedAt: fetchedAt)
+                    return finish(.success, nil, complete: false, next: encodeCursor(state))
                 }
             }
 
-            return result(tasks: tasks, request: request, status: .success, message: nil,
-                          complete: true, nextCursor: nil, fetchedAt: fetchedAt)
+            return finish(.success, nil, complete: true, next: nil)
         } catch ReadError.permissionDenied {
-            return result(tasks: tasks, request: request, status: tasks.isEmpty ? .permissionDenied : .partial,
-                          message: tasks.isEmpty ? "Todoist denied this read. Check the token's data:read access." : "Todoist returned only part of the requested read.",
-                          complete: false, nextCursor: nil, fetchedAt: fetchedAt)
+            return finish(tasks.isEmpty ? .permissionDenied : .partial,
+                          tasks.isEmpty ? "Todoist denied this read. Check the token's data:read access." : "Todoist returned only part of the requested read.",
+                          complete: false, next: nil)
+        } catch ReadError.rateLimited {
+            // No automatic retry: the user can ask again once Todoist's rate limit clears.
+            return finish(tasks.isEmpty ? .unavailable : .partial,
+                          tasks.isEmpty ? "Todoist is rate limiting reads. Try again shortly." : "Todoist rate limited the read, so only part of it was returned.",
+                          complete: false, next: nil)
         } catch is CancellationError {
-            return result(tasks: tasks, request: request, status: .partial,
-                          message: "The Todoist read was canceled before it completed.",
-                          complete: false, nextCursor: nil, fetchedAt: fetchedAt)
+            return finish(.partial, "The Todoist read was canceled before it completed.", complete: false, next: nil)
         } catch {
-            return result(tasks: tasks, request: request, status: tasks.isEmpty ? .unavailable : .partial,
-                          message: tasks.isEmpty ? "Todoist is unavailable right now." : "Todoist returned only part of the requested read.",
-                          complete: false, nextCursor: nil, fetchedAt: fetchedAt)
+            return finish(tasks.isEmpty ? .unavailable : .partial,
+                          tasks.isEmpty ? "Todoist is unavailable right now." : "Todoist returned only part of the requested read.",
+                          complete: false, next: nil)
         }
     }
 
@@ -239,6 +279,7 @@ struct TodoistReadService: Sendable {
         }
         guard let http = response as? HTTPURLResponse else { throw ReadError.invalidResponse }
         if http.statusCode == 401 || http.statusCode == 403 { throw ReadError.permissionDenied }
+        if http.statusCode == 429 { throw ReadError.rateLimited }
         guard http.statusCode == 200 else { throw ReadError.unavailable }
         guard let page = try? JSONDecoder().decode(Page.self, from: data) else { throw ReadError.invalidResponse }
         return page
@@ -258,16 +299,18 @@ struct TodoistReadService: Sendable {
 
     private func result(
         tasks: [TodoistReadTask], request: TodoistFindTasksRequest, status: TodoistReadStatus,
-        message: String?, complete: Bool, nextCursor: String?, fetchedAt: String
+        message: String?, complete: Bool, nextCursor: String?, skipped: Int = 0, fetchedAt: String
     ) -> TodoistFindTasksResult {
-        let workload = TodoistWorkloadSignals(
-            taskCount: tasks.count,
-            highPriorityCount: tasks.filter { ($0.priority ?? 0) >= 3 }.count,
-            timedDueCount: tasks.filter { $0.due?.dateTime != nil }.count,
-            deadlineCount: tasks.filter { $0.deadline != nil }.count,
-            knownDurationMinutes: tasks.compactMap(\.durationMinutes).reduce(0, +),
-            unknownDurationCount: tasks.filter { $0.durationMinutes == nil }.count
-        )
+        var status = status
+        var message = message
+        var complete = complete
+        if skipped > 0 {
+            // Unreadable tasks are dropped, so coverage can never be reported as complete.
+            if status == .success { status = .partial }
+            complete = false
+            let note = "Todoist sent \(skipped) task(s) ClaudeWatch could not read; they were skipped."
+            message = message.map { "\($0) \(note)" } ?? note
+        }
         return TodoistFindTasksResult(
             requestedDate: request.date,
             requestedTimeZone: request.timeZone,
@@ -282,7 +325,7 @@ struct TodoistReadService: Sendable {
             ],
             complete: complete,
             nextCursor: nextCursor,
-            workload: workload
+            workload: TodoistWorkloadSignals(tasks: tasks)
         )
     }
 
@@ -290,10 +333,12 @@ struct TodoistReadService: Sendable {
         guard let encoded else {
             return CursorState(marker: Self.cursorMarker, version: 1, phase: .today, today: nil, overdue: nil)
         }
-        let standard = encoded.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
-        let padding = String(repeating: "=", count: (4 - standard.count % 4) % 4)
-        guard encoded.count <= 1_024,
-              let data = Data(base64Encoded: standard + padding),
+        let pieces = encoded.split(separator: ".", omittingEmptySubsequences: false)
+        guard encoded.count <= 1_024, pieces.count == 2,
+              let data = Self.base64URLDecode(String(pieces[0])),
+              let signature = Self.base64URLDecode(String(pieces[1])),
+              HMAC<SHA256>.isValidAuthenticationCode(signature, authenticating: data,
+                                                     using: SymmetricKey(data: cursorKey)),
               let state = try? JSONDecoder().decode(CursorState.self, from: data),
               state.marker == Self.cursorMarker,
               state.version == 1 else { throw ReadError.invalidResponse }
@@ -304,9 +349,20 @@ struct TodoistReadService: Sendable {
         let normalized = CursorState(marker: Self.cursorMarker, version: 1, phase: state.phase,
                                      today: state.today, overdue: state.overdue)
         guard let data = try? JSONEncoder().encode(normalized) else { return nil }
-        return data.base64EncodedString()
+        let signature = Data(HMAC<SHA256>.authenticationCode(for: data, using: SymmetricKey(data: cursorKey)))
+        return "\(Self.base64URLEncode(data)).\(Self.base64URLEncode(signature))"
+    }
+
+    private static func base64URLEncode(_ data: Data) -> String {
+        data.base64EncodedString()
             .replacingOccurrences(of: "+", with: "-")
             .replacingOccurrences(of: "/", with: "_")
             .trimmingCharacters(in: CharacterSet(charactersIn: "="))
+    }
+
+    private static func base64URLDecode(_ value: String) -> Data? {
+        let standard = value.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        let padding = String(repeating: "=", count: (4 - standard.count % 4) % 4)
+        return Data(base64Encoded: standard + padding)
     }
 }

@@ -1,6 +1,6 @@
 # Day briefing manual validation checklist
 
-The checkboxes below are device and manual acceptance items and remain unchecked. Offline and static evidence gathered so far is recorded in the [run log](#run-log-2026-11-07). That log does not tick any box that needs a Watch, a live provider or a person.
+The checkboxes below are device and manual acceptance items and remain unchecked. Offline and static evidence gathered so far is recorded in the run logs ([2026-11-07](#run-log-2026-11-07), [2026-11-08](#run-log-2026-11-08)). That log does not tick any box that needs a Watch, a live provider or a person.
 
 ## Offline read-harness preparation
 
@@ -123,3 +123,75 @@ The only build warning was the existing "App Intents metadata extraction skipped
 ### Still untested
 
 Every item that needs a Watch, iPhone or simulator, or real Gemini and Todoist accounts: live wire compatibility (Gemini function calling on 3.5 Flash-Lite with thought signatures, the real `/tasks/filter` responses), voice transcription feeding routing, the Settings token sheet, Keychain on device, lifecycle and audio interruptions, accessibility, and timezone or DST boundaries. The mock gaps are 401/403/429 statuses, timeouts, malformed JSON, the 16 KiB result cap and forged cursors.
+
+## Run log 2026-11-08
+
+Branch `todoist/day-briefing-on-voice-upgrade` (on top of aa70304), on the same Mac (macOS 27.0, Xcode 27.0 27A5228h). No Watch or iPhone was connected, `xcrun simctl list runtimes` was still empty, and no live Gemini or Todoist request was made. All provider traffic went through the fail-closed `URLProtocol` fixture with synthetic tokens.
+
+### Commands and results
+
+| Command (repo root) | Result |
+| --- | --- |
+| `xcodebuild … -scheme "ClaudeWatch Read Harness Tests" -destination 'platform=macOS' test` | 24 tests, 0 failures (9 existing + 15 new) |
+| `xcodebuild … -scheme "ClaudeWatch Watch App" -destination 'generic/platform=watchOS Simulator' CODE_SIGNING_ALLOWED=NO build` | BUILD SUCCEEDED |
+| same with `generic/platform=watchOS` | BUILD SUCCEEDED |
+| `xcodebuild … -scheme "ClaudeWatch iPhone App" -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build` | BUILD SUCCEEDED |
+| same with `generic/platform=iOS` | BUILD SUCCEEDED |
+| `swiftc -parse-as-library … Tests/SetupTests.swift && run` | 17 checks passed |
+
+The app builds showed only the existing "App Intents metadata extraction skipped" warning. The harness link step also printed `ld: warning: building for macOS-13.0, but linking with dylib … XCTest … built for newer version 14.0`. That warning comes from the test target's macOS 13 deployment target and is harmless for this run.
+
+### Baseline: new cases against the unmodified services
+
+The new cases were also run with the services reverted to aa70304. Eight of the fifteen failed there. Those failures are the bugs fixed below:
+
+| Case | Observed on aa70304 |
+| --- | --- |
+| `testBriefingDoesNotRetryTodoistAfterHardFailure` | Each of 401, 403, 429 and 503 was read twice, because the model's repeat call hit Todoist again |
+| `testTodoistRateLimitAnd5xxAreUnavailableOrPartialWithoutRetry` | 429 said only "Todoist is unavailable right now." (no rate-limit wording) |
+| `testWrongTypedToolArgumentsAreRejectedNotDefaulted` | A numeric `date`/`timeZone`/`pageCursor` or a string `limit` was silently defaulted, and 5 of 6 bad calls reached Todoist |
+| `testCombiningMarkTitlesAreBoundedByScalars` | A 1-character title kept 5,001 Unicode scalars |
+| `testOversizedToolResultIsTruncatedWithCoverageCaveat` | The whole briefing failed with `toolLimit` after the read |
+| `testRepeatedProviderCursorStopsPagingAndBriefingStaysBounded` | The cursor loop ran until `toolLimit` |
+| `testForgedAndGarbageCursorsAreRejectedBeforeAnyRead` | An unsigned cursor with the right marker, and a cursor from another adapter instance, were accepted and sent to Todoist |
+| `testMalformedTaskRecordsAreSkippedHonestlyWithoutGuessedFields` | One malformed record made the whole page `unavailable` with 0 tasks |
+
+### Fixes (smallest change each; DTO fields, statuses, endpoint, bounds and UI unchanged)
+
+- `TodoistReadService`:
+  - 429 now gets its own rate-limit message. The status is still `unavailable`, or `partial` after a completed phase, and there is no retry.
+  - Malformed task records (missing or wrong-typed `id`/`content`/`priority`/`project_id`/`due`/`deadline`, or priority outside 1–4) are skipped instead of failing the page. The read becomes `partial` with `complete: false` and a "N task(s) … skipped" message. An unreadable `duration` alone still means unknown duration (the 2026-11-07 decision).
+  - Titles are also bounded at 240 Unicode scalars.
+  - Cursors are now `payload.signature` with HMAC-SHA256 under a per-instance random key (CryptoKit). `ChatView` keeps one service instance, so cursors stay valid within and across briefings in a session.
+  - A provider `next_cursor` equal to the one just sent stops paging as `partial` with "Todoist repeated a page cursor".
+- `GeminiDayBriefingService`:
+  - Present but wrong-typed tool arguments are rejected.
+  - After a `permissionDenied` or `unavailable` read, later calls in the same briefing reuse that result without network.
+  - A result over the remaining 16 KiB round budget is cut to the longest task prefix that fits: `partial`, `complete: false`, no `nextCursor`, workload recounted for the sent tasks, plus a message and caveat naming the 16 KiB limit (both shown in the audit footer). No further Todoist reads happen after that. If nothing fits, the existing `toolLimit` error is kept.
+- `TodoistModels`: added `TodoistWorkloadSignals(tasks:)` (shared counting, no new fields).
+
+### New offline cases (all mocked)
+
+1. **401/403** (`…401And403AreDenied…`): `permissionDenied`, the overdue phase is not read, and the encoded result does not contain the token even when the provider body echoes it. **429/500/502/503** (`…RateLimitAnd5xx…`): `unavailable` after exactly one request. A 429 on the overdue phase leaves `partial` with today's tasks. **No retry from the loop** (`…DoesNotRetryTodoistAfterHardFailure`): one Todoist request across three Gemini rounds, the deterministic fallback is shown instead of model text, and the token never appears in Gemini bodies.
+2. **Timeout** (`…TodoistTimeoutIsUnavailableOrPartial`): simulated by the fixture failing with `URLError(.timedOut)`. The real 20 s timer was not exercised. **Cancellation mid-pagination** at adapter level (`…CancellationMidPagination…`): `partial` with only the completed phase, the late page is not applied, and it returns in under 1.5 s. At briefing level (`…CancelledDuringContinuationRead…`): `CancellationError`, and no further Gemini round.
+3. **Malformed JSON**: empty, non-JSON, HTML, truncated, wrong root, `results` missing or null or of the wrong type, and a numeric `next_cursor` all give `unavailable` with 0 tasks. **Malformed records** are skipped as `partial`. **Malformed Gemini bodies** give `invalidResponse` with no Todoist read. **Wrong-typed tool arguments** are rejected before any read.
+4. **16 KiB**: 25 titles of 240 control characters (~36 KiB serialized). Fewer than 25 tasks are sent, the status is `partial`, the caveat names 16 KiB, the footer says "coverage is partial", and a second model call does not reread.
+5. **Cursors**: twelve forged, garbage, tampered, foreign-instance and oversized cursors all give `invalidArguments` with zero requests. The genuine cursor still works. In the **repeated cursor** case, a cooperative model follows the cursor and the run ends with 2 Todoist reads, 3 Gemini rounds and "coverage is partial".
+6. **Hostile titles** (injection text plus JSON-breaking quotes): every Gemini body stays valid JSON with exactly one tool declaration, an unchanged `allowedFunctionNames`, and an identical system instruction across rounds. The mocked model "obeys" with `tasks.delete`/`tasks.update` and a mutation-shaped argument, and all are rejected as `invalidArguments`. A fourth round never happens (`toolLimit`), and every Todoist request was `GET /api/v1/tasks/filter`. The titles reach Gemini only as escaped function-response data.
+
+Observed but not changed: when the model issues a tool call in round 3, the loop still executes that read before stopping with `toolLimit`, even though no round remains to receive it (the hostile case sees 4 GETs). This stays inside the 6-call bound and was left as is.
+
+### Checklist rows updated by this run (boxes stay unchecked)
+
+| Item | Evidence | Status |
+| --- | --- | --- |
+| Empty, partial, permission-denied and unavailable stay distinct | Plus 401/403/429/5xx/timeout/malformed cases | Mocked pass |
+| Unknown tools, arguments, forged cursors rejected before a read | Plus wrong-typed arguments and twelve forged cursors | Mocked pass |
+| Hostile titles stay data | Tools, config and system instruction unchanged across rounds; obeyed calls rejected | Mocked pass; real model behavior pending |
+| Round, call, byte and timeout bounds | 16 KiB truncation, cursor loop, simulated timeout | Mocked pass (real timer pending) |
+| Gemini and Todoist errors make no claims that tasks changed | Fallback on hard failure; malformed Gemini gives an error | Mocked pass |
+| Cancellation and stale callbacks | Mid-pagination at adapter and briefing level | Mocked pass; device pending |
+
+### Still untested
+
+Everything listed as untested on 2026-11-07 that needs a device or a live provider is still untested: a Watch, iPhone or simulator, real Gemini function calling and thought signatures, real `/tasks/filter` responses (including real 401/403/429 bodies and `Retry-After`), the Settings token sheet, on-device Keychain, lifecycle and audio interruptions, accessibility, timezone/DST boundaries, and a real network timeout.

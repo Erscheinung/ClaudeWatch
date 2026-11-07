@@ -72,6 +72,10 @@ final class GeminiDayBriefingService: Sendable {
         ]
         var toolCalls = 0
         var readResults: [TodoistFindTasksResult] = []
+        // After Todoist denies or fails a read, or a result had to be truncated to the byte budget,
+        // later calls in this briefing reuse that result instead of reading Todoist again
+        // (no retry storm on 401/403/429/5xx/timeouts, no further continuation past the budget).
+        var stopReading: TodoistFindTasksResult?
 
         for round in 0..<Self.maxRounds {
             try Task.checkCancellation()
@@ -102,13 +106,26 @@ final class GeminiDayBriefingService: Sendable {
             var resultBytes = 0
             for call in calls {
                 try Task.checkCancellation()
-                let result = try await execute(call, date: date, timeZone: timeZone, token: todoistToken)
-                if let readResult = result.readResult {
-                    readResults.append(readResult)
+                var result = try await execute(call, date: date, timeZone: timeZone, token: todoistToken,
+                                               priorFailure: stopReading)
+                var resultData = try JSONEncoder().encode(result.payload)
+                if resultBytes + resultData.count > Self.maxResultBytes, let readResult = result.readResult {
+                    // Send fewer tasks and say so, rather than dropping the whole briefing.
+                    guard let fitted = try fit(readResult, budget: Self.maxResultBytes - resultBytes) else {
+                        throw BriefingError.toolLimit
+                    }
+                    result = fitted
+                    resultData = try JSONEncoder().encode(result.payload)
+                    stopReading = stopReading ?? fitted.readResult
                 }
-                let resultData = try JSONEncoder().encode(result.payload)
                 resultBytes += resultData.count
                 guard resultBytes <= Self.maxResultBytes else { throw BriefingError.toolLimit }
+                if let readResult = result.readResult {
+                    readResults.append(readResult)
+                    if readResult.status == .permissionDenied || readResult.status == .unavailable {
+                        stopReading = stopReading ?? readResult
+                    }
+                }
                 responses.append(GeminiPart(functionResponse: GeminiFunctionResponse(
                     name: call.name,
                     response: result.payload,
@@ -125,7 +142,8 @@ final class GeminiDayBriefingService: Sendable {
         _ call: GeminiFunctionCall,
         date: String,
         timeZone: TimeZone,
-        token: String
+        token: String,
+        priorFailure: TodoistFindTasksResult?
     ) async throws -> ToolExecution {
         guard call.name == Self.toolName else {
             return ToolExecution(
@@ -136,12 +154,14 @@ final class GeminiDayBriefingService: Sendable {
         }
         do {
             let request = try validate(call.args, defaultDate: date, defaultTimeZone: timeZone.identifier)
-            let result = await todoist.findTasks(request, token: token)
+            let result: TodoistFindTasksResult
+            if let priorFailure {
+                result = priorFailure
+            } else {
+                result = await todoist.findTasks(request, token: token)
+            }
             try Task.checkCancellation()
-            let data = try JSONEncoder().encode(result)
-            guard let value = try? JSONDecoder().decode(JSONValue.self, from: data),
-                  case .object(let object) = value else { throw BriefingError.invalidResponse }
-            return ToolExecution(payload: object, readResult: result)
+            return ToolExecution(payload: try payload(for: result), readResult: result)
         } catch let error as BriefingError {
             return ToolExecution(
                 payload: ["status": .string(TodoistReadStatus.invalidArguments.rawValue),
@@ -157,6 +177,42 @@ final class GeminiDayBriefingService: Sendable {
                 readResult: nil
             )
         }
+    }
+
+    private func payload(for result: TodoistFindTasksResult) throws -> [String: JSONValue] {
+        let data = try JSONEncoder().encode(result)
+        guard let value = try? JSONDecoder().decode(JSONValue.self, from: data),
+              case .object(let object) = value else { throw BriefingError.invalidResponse }
+        return object
+    }
+
+    /// Keeps the longest task prefix whose serialized result fits `budget` bytes. The fitted result is
+    /// partial, has no continuation (the dropped tasks cannot be resumed mid-page), and carries a caveat.
+    /// Returns nil when not even an empty result fits.
+    private func fit(_ result: TodoistFindTasksResult, budget: Int) throws -> ToolExecution? {
+        let total = result.tasks.count
+        for keep in stride(from: total, through: 0, by: -1) {
+            let tasks = Array(result.tasks.prefix(keep))
+            let note = "Only \(keep) of \(total) task(s) fit the 16 KiB tool-result limit; the rest were not sent."
+            let trimmed = TodoistFindTasksResult(
+                requestedDate: result.requestedDate,
+                requestedTimeZone: result.requestedTimeZone,
+                tasks: tasks,
+                fetchedAt: result.fetchedAt,
+                source: result.source,
+                status: result.status == .success ? .partial : result.status,
+                message: result.message.map { "\($0) \(note)" } ?? note,
+                caveats: result.caveats + ["A task read was truncated to fit the 16 KiB tool-result limit, so coverage is incomplete."],
+                complete: false,
+                nextCursor: nil,
+                workload: TodoistWorkloadSignals(tasks: tasks)
+            )
+            let object = try payload(for: trimmed)
+            if try JSONEncoder().encode(object).count <= budget {
+                return ToolExecution(payload: object, readResult: trimmed)
+            }
+        }
+        return nil
     }
 
     /// Adds app-owned status language so the model cannot turn a partial/unknown read into a
@@ -215,12 +271,21 @@ final class GeminiDayBriefingService: Sendable {
             throw BriefingError.invalidToolArguments("unknown fields are not allowed")
         }
 
-        let date = args["date"]?.stringValue ?? defaultDate
+        // A present field of the wrong type is rejected, never silently replaced by a default.
+        func optionalString(_ key: String) throws -> String? {
+            switch args[key] {
+            case nil, .null?: return nil
+            case .string(let value)?: return value
+            default: throw BriefingError.invalidToolArguments("\(key) must be a string")
+            }
+        }
+
+        let date = try optionalString("date") ?? defaultDate
         guard isISODate(date) else { throw BriefingError.invalidToolArguments("date must be YYYY-MM-DD") }
         guard date == defaultDate else {
             throw BriefingError.invalidToolArguments("this briefing is limited to today's local date")
         }
-        let timeZoneID = args["timeZone"]?.stringValue ?? defaultTimeZone
+        let timeZoneID = try optionalString("timeZone") ?? defaultTimeZone
         guard timeZoneID.count <= 64, TimeZone(identifier: timeZoneID) != nil else {
             throw BriefingError.invalidToolArguments("timeZone must be a valid IANA identifier")
         }
@@ -231,9 +296,15 @@ final class GeminiDayBriefingService: Sendable {
             throw BriefingError.invalidToolArguments("includeOverdue must be a boolean")
         }
 
-        let cursor = args["pageCursor"]?.stringValue
+        let cursor = try optionalString("pageCursor")
         if let cursor, cursor.count > 1_024 { throw BriefingError.invalidToolArguments("pageCursor is too long") }
-        let limit = args["limit"]?.intValue ?? TodoistFindTasksRequest.defaultLimit
+        let limit: Int
+        switch args["limit"] {
+        case nil, .null?: limit = TodoistFindTasksRequest.defaultLimit
+        case let value?:
+            guard let integer = value.intValue else { throw BriefingError.invalidToolArguments("limit must be an integer") }
+            limit = integer
+        }
         guard (1...TodoistFindTasksRequest.maxLimit).contains(limit) else {
             throw BriefingError.invalidToolArguments("limit must be between 1 and 25")
         }

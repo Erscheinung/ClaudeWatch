@@ -37,6 +37,20 @@ struct TodoistWorkloadSignals: Codable, Sendable {
     let unknownDurationCount: Int
 }
 
+extension TodoistWorkloadSignals {
+    /// Counts only the tasks actually present; unknown duration is never added as zero minutes.
+    init(tasks: [TodoistReadTask]) {
+        self.init(
+            taskCount: tasks.count,
+            highPriorityCount: tasks.filter { ($0.priority ?? 0) >= 3 }.count,
+            timedDueCount: tasks.filter { $0.due?.dateTime != nil }.count,
+            deadlineCount: tasks.filter { $0.deadline != nil }.count,
+            knownDurationMinutes: tasks.compactMap(\.durationMinutes).reduce(0, +),
+            unknownDurationCount: tasks.filter { $0.durationMinutes == nil }.count
+        )
+    }
+}
+
 struct TodoistFindTasksRequest: Codable, Sendable {
     let date: String
     let timeZone: String
