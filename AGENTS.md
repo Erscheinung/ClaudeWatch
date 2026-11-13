@@ -21,3 +21,7 @@ The git repository is this directory; the Xcode project and Watch sources are in
 Use existing source files where practical; the Xcode project explicitly tracks sources. Keep response rendering shared instead of displaying assistant strings with raw `Text(String)`. Update README and setup help whenever controls change.
 
 Follow the user's validation instructions. For the September 2026 UX overhaul, the user explicitly requested implementation and commit with **no autonomous testing**. No builds, simulator launches, device runs, or test execution were performed for that change; device validation is pending. Do not claim production validation without evidence.
+
+## Related AWS sync
+
+The owner's public repo `Erscheinung/Todoist-Apple-Calendar-Sync` (local: `~/Documents/Todoist-Apple-Calendar`) is a one-way Todoist → iCloud Calendar sync: a Lambda on a 15-minute daytime EventBridge schedule, with DynamoDB mappings and secrets in SSM. See CLAUDE.md, "Related project", for details. Treat it as a separate repo: deploy only with `scripts/deploy.sh` there, and keep secrets in SSM. Never commit tokens, passwords, AWS account IDs or personal identifiers to either public repo. ClaudeWatch must not hold AWS or calendar credentials.

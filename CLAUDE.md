@@ -74,3 +74,27 @@ These are from AGENTS.md and the user's standing preferences.
 ## Related planning (mAI-unified)
 
 The Todoist work is tracked in the user's Todoist project **mAI**, section "Nov Week 1 Tasks" (W03 = this Watch read slice). The unified planner lives in `~/Code/mai-unified`: a Go core `nai`, with the contracts in `packages/contracts/README.md`, the boundary in `docs/claudewatch-todoist-plan.md`, and `docs/decisions/0001-go-single-core.md`. Future Watch plan-awareness should consume the core's `today.export` file pushed by the phone. Future Watch writes are proposals only, reviewed on the phone. The Watch's direct Todoist read token can never unlock writes.
+
+## Related project: Todoist → Apple Calendar sync (AWS Lambda)
+
+[`Erscheinung/Todoist-Apple-Calendar-Sync`](https://github.com/Erscheinung/Todoist-Apple-Calendar-Sync) is the owner's separate public repo (local clone `~/Documents/Todoist-Apple-Calendar`). ClaudeWatch does not call it today, but it is the natural source of calendar context for the Watch later.
+- **What it does:** a one-way sync from all active Todoist tasks with a due date into one iCloud calendar over CalDAV. It manages only the events it created.
+  - Date-only tasks become all-day events.
+  - Timed tasks use the Todoist duration, or 1 h when none is set.
+  - Floating times are rendered in `DISPLAY_TIMEZONE` (default `Asia/Kolkata`).
+  - Alerts fire 10 min before timed tasks and at 09:00 for all-day tasks.
+  - Completed, deleted or undated tasks remove their events.
+- **Infrastructure** (`infra/template.yaml`, CloudFormation):
+  - a 256 MB Lambda;
+  - two EventBridge UTC cron rules (every 15 min, 07:30–23:45 IST);
+  - DynamoDB on-demand for the task↔event mapping;
+  - SSM Parameter Store for the Todoist token and the iCloud app-specific password;
+  - a private S3 artifact bucket.
+- **Commands:**
+  - `scripts/deploy.sh --region ap-south-1` deploys. It prompts for secrets without echo and runs one test sync.
+  - `scripts/rotate-secrets.sh` replaces secrets without a redeploy.
+  - `aws lambda invoke --function-name todoist-apple-calendar-sync …` is a manual sync.
+- **Rules:**
+  - Secrets live only in SSM, never in either repo. Never print them, and never put the owner's account IDs, calendar names or tokens in this public repo.
+  - The sync stays one-way: Todoist is the source of truth.
+  - Any future Watch use must stay read-only, and must not put cloud credentials on the Watch. It should read a small derived file, not provider APIs. Task and calendar data should keep the same Gemini-only rule as the day briefing.
