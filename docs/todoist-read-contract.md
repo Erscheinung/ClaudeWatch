@@ -62,6 +62,8 @@ The adapter caps each server request and never claims that one page is the entir
 
 ## Gemini tool boundary
 
+> **Superseded 2026-11-13.** The briefing no longer gives Gemini a tool. `DayBriefingService` calls `findTasks` itself, page after page until there is no next cursor, and sends Gemini one compact text digest with the question in one call. The read DTOs and statuses below are unchanged, with one additive request field: optional `dayQuery` (`"today"` default, or `"tomorrow"`) for the day phase. The rest of this section records the replaced design.
+
 Only Gemini may use the tool loop. The locally versioned allowlist contains one tool, `tasks.findByDate`, with exactly the request fields above; unknown fields, malformed dates/time zones, out-of-range limits, oversized cursors, and non-allowlisted IDs are rejected before any network read. The model's requested call is not evidence that a task operation happened.
 
 Each Gemini request preserves the model `functionCall` part and its optional provider call ID, then returns a matching `functionResponse` with the same name and ID. Tool results are structured status/data, not free-form instructions. Task data is explicitly untrusted data in the system instruction.

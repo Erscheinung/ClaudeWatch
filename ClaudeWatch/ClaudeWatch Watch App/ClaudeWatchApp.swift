@@ -193,6 +193,7 @@ final class AppSettings: ObservableObject {
     }
 
     /// The briefing runs only for an enabled feature, a saved Todoist token and a Gemini model with a key.
+    /// Task data goes only to Gemini (docs/SCOPE.md); other providers never see it.
     var canUseDayBriefing: Bool {
         guard todoistBriefingEnabled, hasTodoistToken, let model = preferredModel else { return false }
         return model.provider == .google && hasAPIKey(for: .google)

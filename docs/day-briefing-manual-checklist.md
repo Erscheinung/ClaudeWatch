@@ -202,3 +202,22 @@ Everything listed as untested on 2026-11-07 that needs a device or a live provid
 - **Cause:** every round sent `toolConfig.functionCallingConfig.allowedFunctionNames`, including the `AUTO` rounds that follow a tool result. Gemini accepts that field only with `mode: ANY`. The mock harness did not model this rule.
 - **Fix:** `allowedFunctionNames` is sent only when `mode` is `ANY` and omitted in `AUTO`; the request still declares only the one read tool. The harness now asserts that the field is absent outside `ANY`.
 - **Verified:** harness 24/24 and a Debug generic watchOS build. A real Gemini round trip on the Watch is still pending: re-run and ask "What's due today?".
+
+## Run log 2026-11-13 (late): tool loop replaced
+
+- **Owner report on the Watch:** "The day briefing reached its safety limit" (the 3-round / 6-call bound of the tool loop), plus a request for natural questions such as "what's the hardest task for me today?" and "my day is so full of tasks, what can I shift or how can I relax?", with context that does not burn tokens and routing that tells "day"/"tasks" apart from ordinary uses.
+- **Change:** `GeminiDayBriefingService` (tool loop) was replaced by `DayBriefingService`:
+  - local `DayIntent` scoring decides routing (no tokens);
+  - full paging of today/tomorrow plus overdue, with a 120 s cache;
+  - a compact `DayDigest` (about 20 tokens per task, 40 lines listed and the rest summarised);
+  - one ordinary Gemini call and a one-line footer.
+  - Still Gemini-only and GET-only.
+- **Harness:** the 10 tool-loop tests and the old intent test were removed. Added:
+  - intent routing (13 day / 11 ordinary questions, plus follow-ups and scope);
+  - full paging across 4 pages with exactly one model call;
+  - hostile titles flattened to one data line;
+  - cache reuse and expiry;
+  - a denied read failing before any model call;
+  - partial coverage labelled, and the tomorrow filter.
+  - Result: 19/19 PASS. The Debug generic watchOS build succeeded.
+- **Pending on device:** live Gemini answers to the new question types and live `tomorrow` filter behaviour.

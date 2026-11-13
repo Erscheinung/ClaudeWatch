@@ -162,7 +162,7 @@ private struct SetupHelpView: View {
                 help("3", "Talk", "Tap the mic once, speak, then tap the arrow to send. Cancel discards the recording. Questions send automatically at 60 seconds.")
                 help("4", "Reply length", "Settings → Replies → Output length offers Light, Balanced, and Heavy. Balanced is the default; the model stays the same.")
                 help("5", "Listen", "Read the answer and tap Ask for another independent question. Tap the new-chat icon or swipe left to clear answers and return to the mic. Turn off Settings → Read aloud → Read answers for text-only replies. Tap Stop to end narration. Tap the model chip on the home screen to switch models. Swipe right or tap the faint left-edge cue for Settings.")
-                help("6", "Day briefing (optional)", "Settings → Todoist day briefing → Connect Todoist, then turn on Day briefing. With a Gemini model, ask “What's due today?”. It reads today's and overdue tasks only and never changes them.")
+                help("6", "Day briefing (optional)", "Settings → Todoist day briefing → Connect Todoist, then turn on Day briefing. With a Gemini model, ask things like “What's due today?”, “What's the hardest task today?” or “My day is full, what can I shift?”. It reads today's (or tomorrow's) and overdue tasks only and never changes them.")
             }.padding()
         }.navigationTitle("Setup")
     }

@@ -20,7 +20,9 @@ struct ChatView: View {
     @State private var didApplyUIDemo = false
     #endif
     private let apiService = ChatAPIService()
-    private let briefingService = GeminiDayBriefingService()
+    private let briefingService = DayBriefingService()
+    /// The last answer was a day briefing, so a short follow-up needs less evidence to stay on the day.
+    @State private var lastAnswerWasDay = false
 
     private var state: OrbState {
         if recorder.isPreparing { return .preparing }
@@ -382,9 +384,14 @@ struct ChatView: View {
                     guard requestID == id else { return }
                     query = transcript
                 }
-                if briefingAvailable, let query, DayBriefingIntent.matches(query) {
+                var isDay = false
+                if briefingAvailable, let query, DayIntent.matches(query, followUp: lastAnswerWasDay) {
                     pendingQuery = query
-                    response = try await briefingService.run(question: query, modelID: model.rawValue, apiKey: key, todoistToken: todoistToken, timeZone: timeZone)
+                    isDay = true
+                    // One ordinary chat call with a compact Todoist digest in the prompt (no tool loop).
+                    response = try await briefingService.run(question: query, todoistToken: todoistToken, timeZone: timeZone) { prompt in
+                        try await apiService.sendMessage(messages: [Message(role: .user, content: prompt)], model: model, connectionMode: .bringYourOwnKey, apiKey: key, gatewayURL: gatewayURL, replyLength: replyLength)
+                    }
                 } else if inputMode == .text, let query {
                     pendingQuery = query
                     response = try await apiService.sendMessage(messages: [Message(role: .user, content: query)], model: model, connectionMode: .bringYourOwnKey, apiKey: key, gatewayURL: gatewayURL, replyLength: replyLength)
@@ -393,6 +400,7 @@ struct ChatView: View {
                 }
                 try Task.checkCancellation()
                 guard requestID == id else { return }
+                lastAnswerWasDay = isDay
                 messages.append(Message(role: .assistant, content: response, model: model.displayName))
                 retryAudio = nil
                 WKInterfaceDevice.current().play(.success)

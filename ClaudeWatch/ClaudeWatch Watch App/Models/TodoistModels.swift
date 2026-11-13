@@ -1,6 +1,6 @@
 import Foundation
 
-/// The normalized, read-only task shape exposed to the Gemini briefing.
+/// The normalized, read-only task shape used by the day briefing.
 enum TodoistTaskBucket: String, Codable, Sendable {
     case dueToday
     case overdue
@@ -57,6 +57,8 @@ struct TodoistFindTasksRequest: Codable, Sendable {
     let includeOverdue: Bool
     let pageCursor: String?
     let limit: Int
+    /// Todoist filter for the day phase: "today" (default) or "tomorrow".
+    var dayQuery: String? = nil
 
     static let defaultLimit = 25
     static let maxLimit = 25

@@ -31,10 +31,10 @@
 		E953314E73159AF218357F77 /* GeminiModelCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D1582C71DC3D17A68132DD3 /* GeminiModelCatalog.swift */; };
 		CCA00001 /* TodoistModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCB00001 /* TodoistModels.swift */; };
 		CCA00002 /* TodoistReadService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCB00002 /* TodoistReadService.swift */; };
-		CCA00003 /* GeminiDayBriefingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCB00003 /* GeminiDayBriefingService.swift */; };
+		CCA00003 /* DayBriefingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCB00003 /* DayBriefingService.swift */; };
 		CCA00011 /* TodoistModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCB00001 /* TodoistModels.swift */; };
 		CCA00012 /* TodoistReadService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCB00002 /* TodoistReadService.swift */; };
-		CCA00013 /* GeminiDayBriefingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCB00003 /* GeminiDayBriefingService.swift */; };
+		CCA00013 /* DayBriefingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCB00003 /* DayBriefingService.swift */; };
 		CCA00014 /* DayBriefingReadHarnessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCB00004 /* DayBriefingReadHarnessTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -105,7 +105,7 @@
 		BD2F061FE6260E1108C19276 /* CompanionConnection.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CompanionConnection.swift; sourceTree = "<group>"; };
 		CCB00001 /* TodoistModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoistModels.swift; sourceTree = "<group>"; };
 		CCB00002 /* TodoistReadService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoistReadService.swift; sourceTree = "<group>"; };
-		CCB00003 /* GeminiDayBriefingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiDayBriefingService.swift; sourceTree = "<group>"; };
+		CCB00003 /* DayBriefingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayBriefingService.swift; sourceTree = "<group>"; };
 		CCB00004 /* DayBriefingReadHarnessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayBriefingReadHarnessTests.swift; sourceTree = "<group>"; };
 		CCC00001 /* ClaudeWatch Read Harness Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "ClaudeWatch Read Harness Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		DDB00001 /* DebugLocalSecrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = DebugLocalSecrets.xcconfig; sourceTree = "<group>"; };
@@ -245,7 +245,7 @@
 			children = (
 				AAB00008 /* ClaudeAPIService.swift */,
 				CCB00002 /* TodoistReadService.swift */,
-				CCB00003 /* GeminiDayBriefingService.swift */,
+				CCB00003 /* DayBriefingService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -429,7 +429,7 @@
 				E921460DA978DC25454529BD /* CompanionConnection.swift in Sources */,
 				CCA00001 /* TodoistModels.swift in Sources */,
 				CCA00002 /* TodoistReadService.swift in Sources */,
-				CCA00003 /* GeminiDayBriefingService.swift in Sources */,
+				CCA00003 /* DayBriefingService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -459,7 +459,7 @@
 				CCA00014 /* DayBriefingReadHarnessTests.swift in Sources */,
 				CCA00011 /* TodoistModels.swift in Sources */,
 				CCA00012 /* TodoistReadService.swift in Sources */,
-				CCA00013 /* GeminiDayBriefingService.swift in Sources */,
+				CCA00013 /* DayBriefingService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
