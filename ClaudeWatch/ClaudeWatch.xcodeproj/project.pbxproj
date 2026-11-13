@@ -108,6 +108,7 @@
 		CCB00003 /* GeminiDayBriefingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiDayBriefingService.swift; sourceTree = "<group>"; };
 		CCB00004 /* DayBriefingReadHarnessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayBriefingReadHarnessTests.swift; sourceTree = "<group>"; };
 		CCC00001 /* ClaudeWatch Read Harness Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "ClaudeWatch Read Harness Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		DDB00001 /* DebugLocalSecrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = DebugLocalSecrets.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -144,6 +145,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		DDE00001 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				DDB00001 /* DebugLocalSecrets.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
 		22C9E2EDE9FE688D83E1CB52 /* iOS */ = {
 			isa = PBXGroup;
 			children = (
@@ -179,6 +188,7 @@
 				EE4F5248FA9793DE06ECF6A1 /* Shared */,
 				8144175DAB52D0FB61515090 /* ClaudeWatch iPhone App */,
 				CCE00001 /* ClaudeWatch Read Harness Tests */,
+				DDE00001 /* Config */,
 				71906FEE3586313A129F41C6 /* Frameworks */,
 			);
 			sourceTree = "<group>";
@@ -625,6 +635,7 @@
 		};
 		AAG00005 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = DDB00001 /* DebugLocalSecrets.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;

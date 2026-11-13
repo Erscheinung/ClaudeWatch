@@ -11,6 +11,8 @@
 			</array>
 		</dict>
 	</array>
+	<key>CWDevTodoistToken</key>
+	<string>$(CW_DEV_TODOIST_TOKEN)</string>
 	<key>WKApplication</key>
 	<true/>
 </dict>

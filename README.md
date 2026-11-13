@@ -47,6 +47,18 @@ The UX overhaul and subsequent answer-layout, New Chat, and output-length change
 
 Audio-session transitions are ordered and tied to the recording or narration that owns them. Category changes and speech synthesis run on dedicated queues; activation and deactivation use the asynchronous watchOS APIs. Cancellation updates the controls immediately and stops speech before releasing its audio session. Old callbacks cannot release a newer session. [Apple documents that stopping speech clears unspoken utterances too](https://developer.apple.com/documentation/avfaudio/avspeechsynthesizer/stopspeaking(at:)).
 
+### Developer shortcut: Todoist token from `.env` (Debug only)
+
+To avoid typing a 40-character Todoist token on the watch, put it in a gitignored `.env` at the repo root:
+
+```bash
+cp .env.example .env && chmod 600 .env   # then set TODOIST_API_TOKEN = <token>
+```
+
+The file must contain only `KEY = value` lines with no `#` comments, because Xcode reads it as an xcconfig. The Watch target's **Debug** configuration uses `ClaudeWatch/Config/DebugLocalSecrets.xcconfig` as its base, which includes `.env` if it exists and passes the token to the bundle's Info.plist (`CWDevTodoistToken`). On first launch, a Debug build copies the token into the watch Keychain and turns **Day briefing** on. It only does this when no Todoist token is already saved and you have not set the toggle. It runs once per install, so after **Remove Todoist account** it stays removed. Release builds do not use this configuration, and the seeding code is compiled out of them.
+
+Trade-off: a Debug `.app` built with `.env` carries the token in plain text in its Info.plist. Keep Debug builds on your own devices and use a token you can revoke.
+
 ## Project layout
 
 ```text
@@ -67,7 +79,7 @@ The API client uses the chosen output-token ceiling and asks for accurate, compl
 
 ## Development and security
 
-See [AGENTS.md](AGENTS.md) for interaction and implementation guidance. Keep credentials in Keychain; never commit provider keys or bake shared keys into the app. Model IDs live in `Models/ClaudeModel.swift` and should be checked with the provider before changing them.
+See [AGENTS.md](AGENTS.md) for interaction and implementation guidance. Keep credentials in Keychain; never commit provider keys or bake shared keys into the app. The only exception is the Debug-only `.env` Todoist shortcut described above: the file is gitignored and the token is never in source. Model IDs live in `Models/ClaudeModel.swift` and should be checked with the provider before changing them.
 
 The optional [Cloudflare Worker](cloudflare-worker/README.md) and legacy free-cloud client code remain in the repository. The current Watch settings use provider keys and do not expose a free-cloud or fallback endpoint editor. Deploying the Worker is separate from the Watch UX.
 

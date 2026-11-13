@@ -74,6 +74,7 @@ final class AppSettings: ObservableObject {
         static let speechSpeed = "speechSpeed"
         static let liveGeminiModels = "liveGeminiModels"
         static let todoistBriefingEnabled = "todoistBriefingEnabled"
+        static let todoistDevSeeded = "todoistDevTokenSeeded"
     }
 
     /// Keychain account for the separately provisioned Todoist read credential. It is never an
@@ -85,6 +86,9 @@ final class AppSettings: ObservableObject {
         readAloud = UserDefaults.standard.object(forKey: Keys.readAloud) as? Bool ?? true
         voiceSlot = UserDefaults.standard.string(forKey: Keys.voiceSlot) ?? VoiceCatalog.defaultSlot
         speechSpeed = SpeechSpeed(rawValue: UserDefaults.standard.string(forKey: Keys.speechSpeed) ?? "") ?? .normal
+        #if DEBUG
+        Self.seedDevTodoistTokenIfNeeded()
+        #endif
         let savedTodoistToken = KeychainStore.read(account: Self.todoistReadTokenAccount)?.isEmpty == false
         hasTodoistToken = savedTodoistToken
         todoistBriefingEnabled = savedTodoistToken && (UserDefaults.standard.object(forKey: Keys.todoistBriefingEnabled) as? Bool ?? false)
@@ -104,6 +108,26 @@ final class AppSettings: ObservableObject {
         normalizePreferredModel()
         companion.receiveSetup = { [weak self] setup in self?.applyCompanionSetup(setup) == true }
     }
+
+    #if DEBUG
+    /// Debug builds only: copies the developer's Todoist read token from the gitignored repo-root
+    /// `.env` (via ClaudeWatch/Config/DebugLocalSecrets.xcconfig → Info.plist `CWDevTodoistToken`)
+    /// into the Keychain, once per install and only when no token is saved. It also turns the day
+    /// briefing on unless the owner already chose a setting. Removing the account in Settings is
+    /// respected: the seed never runs again for this install. Release has no such value.
+    private static func seedDevTodoistTokenIfNeeded() {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: Keys.todoistDevSeeded),
+              KeychainStore.read(account: todoistReadTokenAccount)?.isEmpty != false,
+              let raw = Bundle.main.object(forInfoDictionaryKey: "CWDevTodoistToken") as? String else { return }
+        let token = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !token.isEmpty, !token.hasPrefix("$("), KeychainStore.save(token, account: todoistReadTokenAccount) else { return }
+        defaults.set(true, forKey: Keys.todoistDevSeeded)
+        if defaults.object(forKey: Keys.todoistBriefingEnabled) == nil {
+            defaults.set(true, forKey: Keys.todoistBriefingEnabled)
+        }
+    }
+    #endif
 
     private func applyCompanionSetup(_ setup: CompanionSetup) -> Bool {
         guard setup.isValid else { return false }

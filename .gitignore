@@ -1,0 +1,6 @@
+# Local secrets (see .env.example)
+.env
+.env.*
+!.env.example
+# Xcode per-user state
+xcuserdata/

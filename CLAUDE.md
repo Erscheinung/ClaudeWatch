@@ -67,7 +67,7 @@ These are from AGENTS.md and the user's standing preferences.
 - Render answers through `AnswerText`, never with raw `Text(String)`. Speech goes through `SpeechText` and honors the persisted Read aloud setting.
 - Text voice mode needs a Gemini key even for other answer providers (Gemini does the transcription). Audio mode requires a Gemini model. Setup copy must match this.
 - Do not imply conversation memory. Day-briefing planning sessions and memory are out of scope.
-- Keys live in Keychain only. Never put them in source, logs, prompts or tool arguments. Test keys come only through env or launch arguments. Never reuse TodoistToday credentials.
+- Keys live in Keychain only. Never put them in source, logs, prompts or tool arguments. Test keys come only through env or launch arguments. Exception: the developer's Todoist read token can live in the gitignored, 0600 repo-root `.env`, which only the Watch Debug configuration reads (`ClaudeWatch/Config/DebugLocalSecrets.xcconfig` → Info.plist `CWDevTodoistToken` → a one-time Keychain seed under `#if DEBUG`). `.env` must have no `#` lines, because it is parsed as xcconfig. Never print or commit its value. Never reuse TodoistToday credentials.
 - Update the root README and the in-app Setup guide (`SetupHelpView`) whenever controls change.
 - Report validation honestly: state what was built, run or tested and on what, and keep device, voice and live-provider checks marked pending until they are actually run.
 
