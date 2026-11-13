@@ -1035,7 +1035,13 @@ extension DayBriefingReadHarnessTests {
             let names = (tools[0]["functionDeclarations"] as? [[String: Any]])?.compactMap { $0["name"] as? String }
             XCTAssertEqual(names, [GeminiDayBriefingService.toolName], "Round \(index) tools changed")
             let config = (body["toolConfig"] as? [String: Any])?["functionCallingConfig"] as? [String: Any]
-            XCTAssertEqual(config?["allowedFunctionNames"] as? [String], [GeminiDayBriefingService.toolName])
+            // Gemini returns 400 if allowedFunctionNames is sent with any mode other than ANY.
+            if config?["mode"] as? String == "ANY" {
+                XCTAssertEqual(config?["allowedFunctionNames"] as? [String], [GeminiDayBriefingService.toolName])
+            } else {
+                XCTAssertEqual(config?["mode"] as? String, "AUTO")
+                XCTAssertNil(config?["allowedFunctionNames"], "Round \(index) sent allowedFunctionNames outside ANY mode")
+            }
             let system = ((body["systemInstruction"] as? [String: Any])?["parts"] as? [[String: Any]])?.first?["text"] as? String
             XCTAssertNotNil(system)
             if let firstSystem { XCTAssertEqual(system, firstSystem, "Round \(index) system instruction changed") }

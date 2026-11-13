@@ -331,7 +331,9 @@ final class GeminiDayBriefingService: Sendable {
             tools: [GeminiTool(functionDeclarations: [Self.functionDeclaration])],
             toolConfig: GeminiToolConfig(functionCallingConfig: GeminiFunctionCallingConfig(
                 mode: forceTool ? "ANY" : "AUTO",
-                allowedFunctionNames: [Self.toolName]
+                // Gemini rejects allowedFunctionNames unless mode is ANY (HTTP 400). In AUTO the
+                // single declared tool is already the only function the model can call.
+                allowedFunctionNames: forceTool ? [Self.toolName] : nil
             )),
             generationConfig: GeminiGenerationConfig(maxOutputTokens: 900)
         ))
@@ -458,7 +460,7 @@ private struct GeminiToolConfig: Encodable {
 
 private struct GeminiFunctionCallingConfig: Encodable {
     let mode: String
-    let allowedFunctionNames: [String]
+    let allowedFunctionNames: [String]? // omitted from JSON when nil
 }
 
 private struct GeminiFunctionDeclaration: Encodable {

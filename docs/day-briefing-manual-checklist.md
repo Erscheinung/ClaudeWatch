@@ -195,3 +195,10 @@ Observed but not changed: when the model issues a tool call in round 3, the loop
 ### Still untested
 
 Everything listed as untested on 2026-11-07 that needs a device or a live provider is still untested: a Watch, iPhone or simulator, real Gemini function calling and thought signatures, real `/tasks/filter` responses (including real 401/403/429 bodies and `Retry-After`), the Settings token sheet, on-device Keychain, lifecycle and audio interruptions, accessibility, timezone/DST boundaries, and a real network timeout.
+
+## Run log 2026-11-13 (device, owner report)
+
+- **Observed by the owner on the Watch:** after the scheme was switched to Debug, the token was seeded and the briefing reached Gemini. Gemini then returned `400: please set allowed_function_names only when function calling mode is ANY`.
+- **Cause:** every round sent `toolConfig.functionCallingConfig.allowedFunctionNames`, including the `AUTO` rounds that follow a tool result. Gemini accepts that field only with `mode: ANY`. The mock harness did not model this rule.
+- **Fix:** `allowedFunctionNames` is sent only when `mode` is `ANY` and omitted in `AUTO`; the request still declares only the one read tool. The harness now asserts that the field is absent outside `ANY`.
+- **Verified:** harness 24/24 and a Debug generic watchOS build. A real Gemini round trip on the Watch is still pending: re-run and ask "What's due today?".
