@@ -77,6 +77,11 @@ final class AppSettings: ObservableObject {
         static let todoistDevSeeded = "todoistDevTokenSeeded"
     }
 
+    /// Keychain accounts for the week digest (Todoist-Apple-Calendar sync's Function URL): the host and
+    /// its bearer secret. Both live only in the Keychain; never in UserDefaults, logs, prompts or footers.
+    static let weekDigestTokenAccount = "week-digest-token"
+    static let weekDigestHostAccount = "week-digest-host"
+
     /// Keychain account for the separately provisioned Todoist read credential. It is never an
     /// AIProvider account, so replacing or removing it cannot touch provider keys (and vice versa).
     static let todoistReadTokenAccount = "todoist-read-token"
@@ -88,6 +93,7 @@ final class AppSettings: ObservableObject {
         speechSpeed = SpeechSpeed(rawValue: UserDefaults.standard.string(forKey: Keys.speechSpeed) ?? "") ?? .normal
         #if DEBUG
         Self.seedDevTodoistTokenIfNeeded()
+        Self.seedDevWeekDigestIfNeeded()
         #endif
         let savedTodoistToken = KeychainStore.read(account: Self.todoistReadTokenAccount)?.isEmpty == false
         hasTodoistToken = savedTodoistToken
@@ -128,6 +134,26 @@ final class AppSettings: ObservableObject {
         }
     }
     #endif
+
+    #if DEBUG
+    /// Debug builds only: copies WEEK_DIGEST_HOST / WEEK_DIGEST_TOKEN from the gitignored `.env`
+    /// (DebugLocalSecrets.xcconfig → Info.plist) when no digest is configured yet. Release has none.
+    private static func seedDevWeekDigestIfNeeded() {
+        guard KeychainStore.read(account: weekDigestHostAccount)?.isEmpty != false,
+              let host = Bundle.main.object(forInfoDictionaryKey: "CWDevWeekDigestHost") as? String,
+              let token = Bundle.main.object(forInfoDictionaryKey: "CWDevWeekDigestToken") as? String,
+              WeekDigestConfig(host: host, token: token) != nil else { return }
+        let t = token.trimmingCharacters(in: .whitespacesAndNewlines), h = host.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard KeychainStore.save(t, account: weekDigestTokenAccount) else { return }
+        if !KeychainStore.save(h, account: weekDigestHostAccount) { KeychainStore.delete(account: weekDigestTokenAccount) }
+    }
+    #endif
+
+    /// Optional week digest (tasks + calendar free/busy). Nil unless both host and secret are saved.
+    var weekDigestConfig: WeekDigestConfig? {
+        WeekDigestConfig(host: KeychainStore.read(account: Self.weekDigestHostAccount) ?? "",
+                         token: KeychainStore.read(account: Self.weekDigestTokenAccount) ?? "")
+    }
 
     private func applyCompanionSetup(_ setup: CompanionSetup) -> Bool {
         guard setup.isValid else { return false }

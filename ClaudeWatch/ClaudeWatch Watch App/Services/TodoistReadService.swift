@@ -203,7 +203,8 @@ struct TodoistReadService: Sendable {
         let repeatedCursor = "Todoist repeated a page cursor, so paging stopped early."
         do {
             if state.phase == .today {
-                let dayQuery = request.dayQuery == "tomorrow" ? "tomorrow" : "today"
+                // Only these three fixed filters are ever sent (no free-form filter from a transcript).
+                let dayQuery = ["tomorrow", "7 days"].contains(request.dayQuery ?? "") ? request.dayQuery! : "today"
                 let page = try await fetch(query: dayQuery, cursor: state.today, limit: limit, token: token)
                 append(page.results, bucket: .dueToday, to: &tasks, seen: &seen)
                 skipped += page.skipped

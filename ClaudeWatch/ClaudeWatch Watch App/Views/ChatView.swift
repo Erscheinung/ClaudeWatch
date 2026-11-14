@@ -373,6 +373,7 @@ struct ChatView: View {
         // Day briefing is opt-in and Gemini-only. When it is off, the request path below is unchanged.
         let briefingAvailable = settings.canUseDayBriefing
         let todoistToken = briefingAvailable ? settings.todoistReadToken : ""
+        let weekDigest = briefingAvailable ? settings.weekDigestConfig : nil
         let timeZone = TimeZone.current
         requestTask = Task { @MainActor in
             do {
@@ -389,7 +390,7 @@ struct ChatView: View {
                     pendingQuery = query
                     isDay = true
                     // One ordinary chat call with a compact Todoist digest in the prompt (no tool loop).
-                    response = try await briefingService.run(question: query, todoistToken: todoistToken, timeZone: timeZone) { prompt in
+                    response = try await briefingService.run(question: query, todoistToken: todoistToken, timeZone: timeZone, weekDigestConfig: weekDigest) { prompt in
                         try await apiService.sendMessage(messages: [Message(role: .user, content: prompt)], model: model, connectionMode: .bringYourOwnKey, apiKey: key, gatewayURL: gatewayURL, replyLength: replyLength)
                     }
                 } else if inputMode == .text, let query {

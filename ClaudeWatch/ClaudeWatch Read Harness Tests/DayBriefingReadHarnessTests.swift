@@ -707,6 +707,152 @@ extension DayBriefingReadHarnessTests {
         XCTAssertTrue(prompt.contains("Coverage is partial"))
         XCTAssertTrue(answer.hasSuffix("· partial"))
     }
+
+    func testWeekQuestionsUseTheSevenDayFilterWithoutADigest() async throws {
+        let store = RequestStore()
+        DayBriefingURLProtocol.install { [self] request in
+            let q = todoistRoute(request).query
+            store.append(q)
+            return Reply.page(q == "7 days" ? tasks("w", 0..<3, date: "2026-11-10") : [])
+        }
+        XCTAssertEqual(DayIntent.scope(of: "How does my week look?"), .week)
+        XCTAssertEqual(DayIntent.scope(of: "Where can I fit the gym?"), .week)
+        XCTAssertEqual(DayIntent.scope(of: "What's due tomorrow?"), .tomorrow)
+        var prompt = ""
+        _ = try await makeBriefing().run(question: "How does my week look?", todoistToken: fixtureToken,
+                                         timeZone: fixtureTimeZone, now: fixtureDate) { p in prompt = p; return "Calm." }
+        XCTAssertEqual(store.snapshot(), ["7 days", "overdue"])
+        XCTAssertTrue(prompt.contains("the next 7 days"), prompt)
+        XCTAssertTrue(prompt.contains("|Tue 10|"), "week lines carry the weekday: \(prompt)")
+    }
+
+    func testWeekDigestIsOneFetchAndOneModelCallWithFreeTime() async throws {
+        let store = RequestStore()
+        let digest = """
+        {"v":1,"generatedAt":"2026-11-07T08:00:00Z","tz":"Asia/Kolkata","hours":["08:00","21:00"],
+         "overdue":[{"t":"Old bill","p":1,"due":"2026-11-05"}],"overdueMore":0,"busySources":2,
+         "days":[{"date":"2026-11-07","tasks":[{"t":"Gym","p":2,"at":"18:00","min":60}],"busy":[["15:00","16:00"]],"freeMin":330},
+                 {"date":"2026-11-08","tasks":[],"busy":[],"freeMin":780}]}
+        """
+        DayBriefingURLProtocol.install { request in
+            store.append("\(request.url?.host ?? "")|\(request.value(forHTTPHeaderField: "Authorization") ?? "")")
+            return Reply(statusCode: 200, body: Data(digest.utf8))
+        }
+        let config = try XCTUnwrap(WeekDigestConfig(host: "abc.lambda-url.fixture.on.aws", token: "digest-secret"))
+        var prompts: [String] = []
+        let answer = try await makeBriefing().run(question: "Where can I fit a long walk this week?", todoistToken: fixtureToken,
+                                                  timeZone: fixtureTimeZone, now: fixtureDate, weekDigestConfig: config) { p in
+            prompts.append(p); return "Sunday is wide open."
+        }
+        XCTAssertEqual(store.snapshot(), ["abc.lambda-url.fixture.on.aws|Bearer digest-secret"], "no Todoist read when the digest answers")
+        XCTAssertEqual(prompts.count, 1)
+        let prompt = try XCTUnwrap(prompts.first)
+        XCTAssertTrue(prompt.contains("Sat 2026-11-07: free 5h30 in hours; busy 15:00–16:00. Tasks: 18:00 P2 1h Gym"), prompt)
+        XCTAssertTrue(prompt.contains("Sun 2026-11-08: free 13h in hours; no meetings. Tasks: none"), prompt)
+        XCTAssertTrue(prompt.contains("OVERDUE: P1 Old bill (due 2026-11-05)"))
+        XCTAssertFalse(prompt.contains("digest-secret"))
+        XCTAssertTrue(answer.contains("Week digest · 1 task · 2 calendars · built 13:30"), answer)
+    }
+
+    func testWeekDigestFailureFallsBackToTodoist() async throws {
+        let store = RequestStore()
+        DayBriefingURLProtocol.install { [self] request in
+            if request.url?.host == "abc.lambda-url.fixture.on.aws" { store.append("digest"); return Reply(statusCode: 401, body: Data()) }
+            store.append(todoistRoute(request).query)
+            return Reply.page([])
+        }
+        let config = try XCTUnwrap(WeekDigestConfig(host: "https://abc.lambda-url.fixture.on.aws/", token: "x"))
+        _ = try await makeBriefing().run(question: "how's my week", todoistToken: fixtureToken, timeZone: fixtureTimeZone,
+                                         now: fixtureDate, weekDigestConfig: config) { _ in "ok" }
+        XCTAssertEqual(store.snapshot(), ["digest", "7 days", "overdue"])
+        XCTAssertNil(WeekDigestConfig(host: "http://plain.example", token: "x"), "https only")
+        XCTAssertNil(WeekDigestConfig(host: "$(WEEK_DIGEST_HOST)", token: "x"), "unexpanded build setting is ignored")
+        XCTAssertNil(WeekDigestConfig(host: "abc.example", token: " "))
+    }
+
+    // ---- prompt 07: routing, statuses, staleness, day calendar line, one call ----
+
+    func testWeekRoutingKeepsTodayAndTomorrowWeekdays() {
+        // fixtureDate is Saturday 2026-11-07 in Asia/Kolkata.
+        let at = { (q: String) in DayIntent.scope(of: q, now: self.fixtureDate, timeZone: self.fixtureTimeZone) }
+        XCTAssertEqual(at("What's due today, Saturday?"), .today)
+        XCTAssertEqual(at("Anything on Sunday?"), .tomorrow)
+        XCTAssertEqual(at("Is the weekly report due today?"), .today, "'weekly' is not 'week'")
+        XCTAssertEqual(at("What about Thursday?"), .week)
+        XCTAssertEqual(at("How does my week look?"), .week)
+        XCTAssertEqual(at("Plans for this weekend?"), .week)
+        XCTAssertEqual(at("When can I fit a run?"), .week)
+        XCTAssertTrue(DayIntent.matches("What's due at Work today?"), "Work is not a place")
+        XCTAssertFalse(DayIntent.matches("What day is it?"))
+        XCTAssertFalse(DayIntent.matches("How do I run Celery tasks in Python?"))
+    }
+
+    private func digestJSON(generatedAt: String = "2026-11-07T08:00:00Z", v: Int = 1, extra: String = "") -> String {
+        """
+        {"v":\(v),"generatedAt":"\(generatedAt)","tz":"Asia/Kolkata","hours":["08:00","21:00"],"overdue":[],"overdueMore":0,"busySources":2\(extra),
+         "days":[{"date":"2026-11-07","tasks":[{"t":"Gym","p":2,"at":"18:00","min":60}],"busy":[["15:00","16:00"]],"freeMin":330},
+                 {"date":"2026-11-08","tasks":[],"busy":[],"freeMin":780}]}
+        """
+    }
+
+    private func runWith(_ question: String, digest: @escaping @Sendable (URLRequest) -> Reply, config: WeekDigestConfig?) async throws -> (answer: String, prompts: [String], hosts: [String]) {
+        let hosts = RequestStore()
+        DayBriefingURLProtocol.install { [self] request in
+            hosts.append(request.url?.host ?? "")
+            if request.url?.host == "abc.lambda-url.fixture.on.aws" { return digest(request) }
+            let q = todoistRoute(request).query
+            return Reply.page(q == "today" || q == "7 days" ? tasks("t", 0..<2) : [])
+        }
+        var prompts: [String] = []
+        let answer = try await makeBriefing().run(question: question, todoistToken: fixtureToken, timeZone: fixtureTimeZone,
+                                                  now: fixtureDate, weekDigestConfig: config) { p in prompts.append(p); return "ok" }
+        return (answer, prompts, hosts.snapshot())
+    }
+
+    func testOneModelCallPerBranchAndOnlyKnownHosts() async throws {
+        let config = try XCTUnwrap(WeekDigestConfig(host: "abc.lambda-url.fixture.on.aws", token: "digest-secret"))
+        let ok = { (_: URLRequest) in Reply(statusCode: 200, body: Data(self.digestJSON().utf8)) }
+        for (question, cfg) in [("How does my week look?", config), ("How does my week look?", nil), ("What's due today?", config), ("What's due today?", nil)] as [(String, WeekDigestConfig?)] {
+            let r = try await runWith(question, digest: ok, config: cfg)
+            XCTAssertEqual(r.prompts.count, 1, "\(question) digest=\(cfg != nil)")
+            XCTAssertTrue(Set(r.hosts).isSubset(of: ["todoist.fixture", "abc.lambda-url.fixture.on.aws"]), "\(r.hosts)")
+            XCTAssertFalse(r.prompts[0].contains("digest-secret"))
+        }
+    }
+
+    func testDayQuestionGetsTheCalendarLine() async throws {
+        let config = try XCTUnwrap(WeekDigestConfig(host: "abc.lambda-url.fixture.on.aws", token: "digest-secret"))
+        let r = try await runWith("What's due today?", digest: { _ in Reply(statusCode: 200, body: Data(self.digestJSON().utf8)) }, config: config)
+        XCTAssertTrue(r.prompts[0].contains("Calendar: busy 15:00–16:00; free 5h30 in hours 08:00–21:00"), r.prompts[0])
+        XCTAssertTrue(r.prompts[0].contains("use it for free-time answers"))
+        XCTAssertTrue(r.answer.contains(" · calendar"), r.answer)
+        let plain = try await runWith("What's due today?", digest: { _ in Reply(statusCode: 500, body: Data()) }, config: nil)
+        XCTAssertTrue(plain.prompts[0].contains("There is no calendar data"), "without a digest the day prompt is unchanged")
+    }
+
+    func testDigestStatusesBecomeFooterNotes() async throws {
+        let config = try XCTUnwrap(WeekDigestConfig(host: "abc.lambda-url.fixture.on.aws", token: "x"))
+        let denied = try await runWith("how's my week", digest: { _ in Reply(statusCode: 401, body: Data()) }, config: config)
+        XCTAssertTrue(denied.answer.hasSuffix("week digest secret rejected"), denied.answer)
+        let down = try await runWith("how's my week", digest: { _ in Reply(statusCode: 503, body: Data()) }, config: config)
+        XCTAssertTrue(down.answer.hasSuffix("week digest unavailable"), down.answer)
+        let v2 = try await runWith("how's my week", digest: { _ in Reply(statusCode: 200, body: Data(self.digestJSON(v: 2).utf8)) }, config: config)
+        XCTAssertTrue(v2.answer.hasSuffix("week digest format not supported"), v2.answer)
+        let huge = String(repeating: " ", count: 33 * 1024) + digestJSON()
+        let big = try await runWith("how's my week", digest: { _ in Reply(statusCode: 200, body: Data(huge.utf8)) }, config: config)
+        XCTAssertTrue(big.answer.hasSuffix("week digest format not supported"), "over 32 KiB is refused")
+    }
+
+    func testStaleAndPartialDigestsAreSaidOutLoud() async throws {
+        let config = try XCTUnwrap(WeekDigestConfig(host: "abc.lambda-url.fixture.on.aws", token: "x"))
+        let old = try await runWith("how's my week", digest: { _ in Reply(statusCode: 200, body: Data(self.digestJSON(generatedAt: "2026-11-06T20:00:00Z").utf8)) }, config: config)
+        XCTAssertTrue(old.answer.hasSuffix("· stale"), old.answer)
+        XCTAssertTrue(old.prompts[0].contains("calendar data may be out of date"))
+        XCTAssertTrue(old.answer.contains("built 01:30"), "build time in the Watch's zone: \(old.answer)")
+        let partial = try await runWith("how's my week", digest: { _ in Reply(statusCode: 200, body: Data(self.digestJSON(extra: ",\"busyExpected\":3,\"complete\":false,\"caveats\":[\"calendarUnavailable\"]").utf8)) }, config: config)
+        XCTAssertTrue(partial.prompts[0].contains("1 calendar(s) could not be read"), partial.prompts[0])
+        XCTAssertTrue(partial.prompts[0].contains("Sun 2026-11-08: free 13h in hours; busy time unknown"), "never 'no meetings' when a calendar is missing")
+    }
 }
 
 private extension DayBriefingReadHarnessTests {
@@ -716,7 +862,8 @@ private extension DayBriefingReadHarnessTests {
     }
 
     func makeBriefing() -> DayBriefingService {
-        DayBriefingService(todoist: TodoistReadService(baseURL: todoistBase, session: makeSession()))
+        DayBriefingService(todoist: TodoistReadService(baseURL: todoistBase, session: makeSession()),
+                           weekDigest: WeekDigestService(session: makeSession()))
     }
 
     func todoistRoute(_ request: URLRequest) -> (query: String, cursor: String?) {

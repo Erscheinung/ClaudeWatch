@@ -13,6 +13,10 @@
 	</array>
 	<key>CWDevTodoistToken</key>
 	<string>$(CW_DEV_TODOIST_TOKEN)</string>
+	<key>CWDevWeekDigestHost</key>
+	<string>$(CW_DEV_WEEK_DIGEST_HOST)</string>
+	<key>CWDevWeekDigestToken</key>
+	<string>$(CW_DEV_WEEK_DIGEST_TOKEN)</string>
 	<key>WKApplication</key>
 	<true/>
 </dict>
