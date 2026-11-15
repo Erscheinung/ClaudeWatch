@@ -427,7 +427,7 @@ struct WeekDigestPayload: Decodable, Sendable {
     var generatedDate: Date? { ISO8601DateFormatter().date(from: generatedAt) }
     var missingCalendars: Int { max(0, (busyExpected ?? busySources) - busySources) }
     func isStale(now: Date) -> Bool {
-        complete == false || (generatedDate.map { now.timeIntervalSince($0) > Self.staleAfter } ?? true)
+        missingCalendars > 0 || complete == false || (generatedDate.map { now.timeIntervalSince($0) > Self.staleAfter } ?? true)
     }
 
     private var busyNote: String {
@@ -439,10 +439,17 @@ struct WeekDigestPayload: Decodable, Sendable {
         return "no meetings"
     }
 
+    private func freeText(_ d: Day, now: Date) -> String {
+        if busySources == 0 || missingCalendars > 0 || isStale(now: now) {
+            return "free time unconfirmed (\(DayDigest.dur(d.freeMin)) before missing or outdated calendar data)"
+        }
+        return "free \(DayDigest.dur(d.freeMin))"
+    }
+
     /// One line for a day question: that date's busy blocks and free minutes.
     func calendarLine(for date: String, now: Date) -> String? {
         guard let d = days.first(where: { $0.date == date }) else { return nil }
-        var line = "Calendar: \(busyText(d)); free \(DayDigest.dur(d.freeMin)) in hours \(hours.joined(separator: "–"))"
+        var line = "Calendar: \(busyText(d)); \(freeText(d, now: now)) in hours \(hours.joined(separator: "–"))"
         if !busyNote.isEmpty { line += " (\(busyNote))" }
         if isStale(now: now) { line += " (may be out of date)" }
         return line
@@ -456,7 +463,7 @@ struct WeekDigestPayload: Decodable, Sendable {
         }
         for d in days {
             let busy = busyText(d)
-            var line = "\(Self.weekday(d.date)) \(d.date): free \(DayDigest.dur(d.freeMin)) in hours; \(busy). Tasks: "
+            var line = "\(Self.weekday(d.date)) \(d.date): \(freeText(d, now: now)) in hours; \(busy). Tasks: "
             let items = d.tasks.prefix(Self.maxPerDay).map { i in
                 [i.at, "P\(i.p)", i.min.map(DayDigest.dur), DayDigest.clean(i.t)].compactMap { $0 }.joined(separator: " ")
             }
@@ -521,7 +528,7 @@ final class WeekDigestService: Sendable {
     init(session: URLSession = .shared) { self.session = session }
 
     func fetch(_ config: WeekDigestConfig, now: Date = Date()) async throws -> WeekDigestPayload {
-        if let hit = await cache.get(config.url, now: now) { return hit }
+        if let hit = await cache.get(config, now: now) { return hit }
         var req = URLRequest(url: config.url, timeoutInterval: Self.timeout)
         req.setValue("Bearer \(config.token)", forHTTPHeaderField: "Authorization")
         req.setValue("application/json", forHTTPHeaderField: "Accept")
@@ -537,17 +544,17 @@ final class WeekDigestService: Sendable {
         struct Version: Decodable { let v: Int }
         guard (try? JSONDecoder().decode(Version.self, from: data))?.v == 1 else { throw DigestError.unsupported }
         guard let payload = try? JSONDecoder().decode(WeekDigestPayload.self, from: data) else { throw DigestError.unsupported }
-        await cache.put(config.url, payload, now: now)
+        await cache.put(config, payload, now: now)
         return payload
     }
 
     private actor Cache {
-        private var entry: (url: URL, at: Date, value: WeekDigestPayload)?
-        func get(_ url: URL, now: Date) -> WeekDigestPayload? {
-            guard let e = entry, e.url == url, now >= e.at, now.timeIntervalSince(e.at) < DayBriefingService.cacheSeconds else { return nil }
+        private var entry: (config: WeekDigestConfig, at: Date, value: WeekDigestPayload)?
+        func get(_ config: WeekDigestConfig, now: Date) -> WeekDigestPayload? {
+            guard let e = entry, e.config == config, now >= e.at, now.timeIntervalSince(e.at) < DayBriefingService.cacheSeconds else { return nil }
             return e.value
         }
-        func put(_ url: URL, _ value: WeekDigestPayload, now: Date) { entry = (url, now, value) }
+        func put(_ config: WeekDigestConfig, _ value: WeekDigestPayload, now: Date) { entry = (config, now, value) }
     }
 }
 

@@ -830,6 +830,37 @@ extension DayBriefingReadHarnessTests {
         XCTAssertTrue(plain.prompts[0].contains("There is no calendar data"), "without a digest the day prompt is unchanged")
     }
 
+    func testDigestCacheDoesNotCrossCredentialChanges() async throws {
+        let calls = RequestStore()
+        DayBriefingURLProtocol.install { request in
+            calls.append(request.url?.host ?? "")
+            guard request.value(forHTTPHeaderField: "Authorization") == "Bearer first-fixture" else {
+                return Reply(statusCode: 401, body: Data())
+            }
+            return Reply(statusCode: 200, body: Data(self.digestJSON().utf8))
+        }
+        let service = WeekDigestService(session: makeSession())
+        let first = try XCTUnwrap(WeekDigestConfig(host: "abc.lambda-url.fixture.on.aws", token: "first-fixture"))
+        let changed = try XCTUnwrap(WeekDigestConfig(host: "abc.lambda-url.fixture.on.aws", token: "replacement-fixture"))
+        _ = try await service.fetch(first, now: fixtureDate)
+        _ = try await service.fetch(first, now: fixtureDate)
+        XCTAssertEqual(calls.snapshot().count, 1)
+        do {
+            _ = try await service.fetch(changed, now: fixtureDate)
+            XCTFail("A changed credential must authenticate again")
+        } catch let error as WeekDigestService.DigestError {
+            XCTAssertEqual(error, .unauthorized)
+        }
+        XCTAssertEqual(calls.snapshot().count, 2)
+    }
+
+    func testMissingCalendarsOverrideCompleteFlag() throws {
+        let payload = try JSONDecoder().decode(WeekDigestPayload.self, from: Data(digestJSON(extra: ",\"busyExpected\":3,\"complete\":true").utf8))
+        XCTAssertTrue(payload.isStale(now: fixtureDate))
+        XCTAssertTrue(payload.calendarLine(for: "2026-11-07", now: fixtureDate)?.contains("free time unconfirmed") == true)
+        XCTAssertTrue(payload.footer(now: fixtureDate, timeZone: fixtureTimeZone).hasSuffix("· stale"))
+    }
+
     func testDigestStatusesBecomeFooterNotes() async throws {
         let config = try XCTUnwrap(WeekDigestConfig(host: "abc.lambda-url.fixture.on.aws", token: "x"))
         let denied = try await runWith("how's my week", digest: { _ in Reply(statusCode: 401, body: Data()) }, config: config)
@@ -851,7 +882,7 @@ extension DayBriefingReadHarnessTests {
         XCTAssertTrue(old.answer.contains("built 01:30"), "build time in the Watch's zone: \(old.answer)")
         let partial = try await runWith("how's my week", digest: { _ in Reply(statusCode: 200, body: Data(self.digestJSON(extra: ",\"busyExpected\":3,\"complete\":false,\"caveats\":[\"calendarUnavailable\"]").utf8)) }, config: config)
         XCTAssertTrue(partial.prompts[0].contains("1 calendar(s) could not be read"), partial.prompts[0])
-        XCTAssertTrue(partial.prompts[0].contains("Sun 2026-11-08: free 13h in hours; busy time unknown"), "never 'no meetings' when a calendar is missing")
+        XCTAssertTrue(partial.prompts[0].contains("Sun 2026-11-08: free time unconfirmed (13h before missing or outdated calendar data) in hours; busy time unknown"), "never 'no meetings' when a calendar is missing")
     }
 }
 

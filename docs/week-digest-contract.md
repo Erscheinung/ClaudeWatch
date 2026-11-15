@@ -31,3 +31,7 @@ Status: implemented 2026-11-14. The digest itself comes from the Todoist-Apple-C
 - The host and secret live only in the Watch Keychain. They never appear in UserDefaults, logs, prompts or footers.
 - Gemini only: the digest is task and calendar data. Calendar **event titles are never in it** (free/busy only); task titles are, and the prompt says they are data, not instructions.
 - Exactly one model call per question, in every branch (week or day, with or without the digest). Harness tests check this.
+
+## Integration hardening (2026-11-15)
+
+Missing calendars override a conflicting `complete: true`. Missing, stale or unshared calendar coverage makes free time **unconfirmed** in day and week prompts; the number is only a provisional upper bound. Digest cache entries are bound to the endpoint and credential together, so replacing a credential requires a fresh authenticated read. These changes preserve the one-call briefing and existing Watch controls.
